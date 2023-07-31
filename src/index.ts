@@ -33,7 +33,7 @@ async function main() {
   let i = 0;
   let vrankTimeDataResult: string[][] = [];
 
-  while (i < 5) {
+  while (i < 20) {
     const blockNumberPromise = caver.rpc.klay.getBlockNumber();
     const vrankTimeDataPromise = getVrankTimeData();
 
@@ -71,7 +71,7 @@ async function main() {
   }
 
   const tableFormat = table(vrankTimeDataResult);
-  writeFile(__dirname + "/vrankTimeData.txt", tableFormat);
+  writeFile("vrankTimeData.txt", tableFormat);
 }
 
 main();
