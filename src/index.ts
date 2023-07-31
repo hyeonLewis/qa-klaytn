@@ -1,5 +1,4 @@
-import { writeFileSync } from "fs";
-import { apiGet } from "./api";
+import { apiGet, writeFile } from "./helper";
 import { table } from "table";
 import Caver from "caver-js";
 
@@ -40,13 +39,15 @@ async function main() {
 
     const result = await Promise.all([blockNumberPromise, vrankTimeDataPromise]);
 
+    // VRank metric for block N will be updated in preprepare phase of block N+1,
     const blockNumber = Number(result[0]) - 1;
     let vrankTimeData = result[1];
+
+    vrankTimeData = ["klaytn_block_number: " + String(blockNumber), ...vrankTimeData];
 
     if (startBlockNumber === 0) {
       startBlockNumber = blockNumber;
 
-      vrankTimeData = ["klaytn_block_number: " + String(blockNumber), ...vrankTimeData];
       vrankTimeDataResult.push(vrankTimeData);
 
       console.log("Start block number:", startBlockNumber);
@@ -56,8 +57,6 @@ async function main() {
 
       await new Promise((resolve) => setTimeout(resolve, 1000));
     } else {
-      vrankTimeData = ["klaytn_block_number: " + String(blockNumber), ...vrankTimeData];
-
       // Not in same block number
       if (vrankTimeData[0] !== vrankTimeDataResult[i - 1][0]) {
         console.log("Add new data:", vrankTimeData);
@@ -72,8 +71,7 @@ async function main() {
   }
 
   const tableFormat = table(vrankTimeDataResult);
-  writeFileSync(__dirname + "/vrankTimeData.txt", tableFormat, "utf-8");
-  // writeFileSync(__dirname + "/vrankTimeData.json", JSON.stringify(vrankTimeDataResult));
+  writeFile(__dirname + "/vrankTimeData.txt", tableFormat);
 }
 
 main();

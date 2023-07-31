@@ -1,18 +1,11 @@
 import { readFileSync, writeFileSync } from "fs";
+import { openFile, writeFile } from "./helper";
 import { table } from "table";
 
 const vrankRegex: RegExp = /\b\w*(VRank)\w*\b.*/g;
 
-function openLogFile(fileName: string) {
-  return readFileSync(__dirname + "/" + fileName, "utf-8");
-}
-
-function writeLogFile(fileName: string, data: string) {
-  writeFileSync(__dirname + "/" + fileName, data, { encoding: "utf-8" });
-}
-
 function main() {
-  const logString = openLogFile("log.txt");
+  const logString = openFile("log.txt");
   const vrankLog = String(logString.match(vrankRegex));
 
   const splitLog = vrankLog.split(",");
@@ -24,7 +17,7 @@ function main() {
 
   const tableFormat = table(splitLog2D);
 
-  writeLogFile("vrankLog.txt", tableFormat);
+  writeFile("vrankLog.txt", tableFormat);
 }
 
 main();
