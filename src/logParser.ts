@@ -10,10 +10,7 @@ function main() {
 
   const splitLog = vrankLog.split(",");
 
-  let splitLog2D: string[][] = [];
-  for (let i = 0; i < splitLog.length; i++) {
-    splitLog2D.push(splitLog[i].split(":"));
-  }
+  const splitLog2D = splitLog.map((log) => log.split(":"));
 
   const tableFormat = table(splitLog2D);
 
