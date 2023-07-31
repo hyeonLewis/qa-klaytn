@@ -33,14 +33,14 @@ async function main() {
   let i = 0;
   let vrankTimeDataResult: string[][] = [];
 
-  while (i < 20) {
+  while (i < 10) {
     const blockNumberPromise = caver.rpc.klay.getBlockNumber();
     const vrankTimeDataPromise = getVrankTimeData();
 
     const result = await Promise.all([blockNumberPromise, vrankTimeDataPromise]);
 
     // VRank metric for block N will be updated in preprepare phase of block N+1,
-    const blockNumber = Number(result[0]) - 1;
+    const blockNumber = Number(result[0]) - 2;
     let vrankTimeData = result[1];
 
     vrankTimeData = ["klaytn_block_number: " + String(blockNumber), ...vrankTimeData];
