@@ -8,7 +8,7 @@ const metrics = "http://localhost:61001/metrics";
 const caver = new Caver(rpc);
 
 const vrankRegex: RegExp = /\b\w*(vrank)\w*\b.*/g;
-const numberRegex: RegExp = /-?\d*\.?\d+e[+-]?\d+/g;
+const numberRegex: RegExp = /\d+(\.\d+)?(e[+-]\d+)?/;
 
 function filterVrankData(data: string): string[] {
   const vrank = data.match(vrankRegex);
@@ -40,7 +40,7 @@ async function main() {
     const result = await Promise.all([blockNumberPromise, vrankTimeDataPromise]);
 
     // VRank metric for block N will be updated in preprepare phase of block N+1,
-    const blockNumber = Number(result[0]) - 2;
+    const blockNumber = Number(result[0]) - 1;
     let vrankTimeData = result[1];
 
     vrankTimeData = ["klaytn_block_number: " + String(blockNumber), ...vrankTimeData];
