@@ -55,10 +55,10 @@ async function main() {
 
       i++;
 
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 3000));
     } else {
-      // Not in same block number
-      if (vrankTimeData[0] !== vrankTimeDataResult[i - 1][0]) {
+      // When updated
+      if (vrankTimeData[1] !== vrankTimeDataResult[i - 1][1]) {
         console.log("Add new data:", vrankTimeData);
 
         vrankTimeDataResult.push(vrankTimeData);
@@ -66,7 +66,7 @@ async function main() {
         i++;
       }
 
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 3000));
     }
   }
 
