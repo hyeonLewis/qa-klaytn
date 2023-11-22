@@ -13,5 +13,8 @@
     "@types/node": "^20.4.5",
     "@types/table": "^6.3.2",
     "tslib": "^2.6.1"
+  },
+  "dependencies": {
+    "bls-signatures": "^2.0.2"
   }
 }
