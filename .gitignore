@@ -3,3 +3,4 @@ src/vrankLog.txt
 src/vrankTimeData.txt
 node_modules
 .DS_Store
+.env
