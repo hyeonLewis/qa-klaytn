@@ -1,33 +1,9 @@
 import { assert } from "console";
-import { GasPrice, GasPrice__factory } from "../../../typechain-types";
+import { GasPrice } from "../../../typechain-types";
 import { ethers } from "ethers";
 import { Wallet, JsonRpcProvider } from "@klaytn/ethers-ext";
-import { getEnv } from "../../common/utils";
 
-const url = "http://127.0.0.1:8551";
-
-async function deployGasPrice() {
-    const env = getEnv();
-
-    const pk = env["PRIVATE_KEY"];
-    const provider = new ethers.providers.JsonRpcProvider(url);
-    const deployer = new ethers.Wallet(pk, provider);
-
-    const userPk = ethers.Wallet.createRandom().privateKey;
-    const user = new ethers.Wallet(userPk, provider);
-    const tx = await deployer.sendTransaction({
-        to: user.address,
-        value: ethers.utils.parseEther("100"),
-    });
-    await tx.wait(1);
-
-    const gasPrice = await new GasPrice__factory(user).deploy();
-    await gasPrice.deployed();
-
-    console.log("GasPrice deployed to:", gasPrice.address);
-
-    return { gasPrice, deployer, userPk };
-}
+const url = "http://127.0.0.1:8552"; // Endpoint node
 
 async function checkResult(
     gasPrice: GasPrice,
@@ -91,7 +67,7 @@ async function checkResult(
     );
 }
 
-async function testProposerReward(gasPrice: GasPrice, deployer: ethers.Wallet) {
+export async function testProposerReward(gasPrice: GasPrice, deployer: ethers.Wallet) {
     console.log("Testing proposer reward");
 
     // Make effective gas price 20000 gkei
@@ -146,7 +122,8 @@ async function testProposerReward(gasPrice: GasPrice, deployer: ethers.Wallet) {
         `Expected burntFee to be ${expectedBurntFee}, got ${burntFee.toString()}`
     );
 }
-async function testGasPriceForKlaytnType(gasPrice: GasPrice, deployer: ethers.Wallet, userPk: string) {
+
+export async function testGasPriceForKlaytnType(gasPrice: GasPrice, deployer: ethers.Wallet, userPk: string) {
     console.log("Testing for Klaytn type");
     // Note that basefee is 25 gkei.
     // gasPrice - baseFee will be the gas tip.
@@ -200,7 +177,7 @@ async function testGasPriceForKlaytnType(gasPrice: GasPrice, deployer: ethers.Wa
     }
 }
 
-async function testGasPriceForLegacy(gasPrice: GasPrice, deployer: ethers.Wallet) {
+export async function testGasPriceForLegacy(gasPrice: GasPrice, deployer: ethers.Wallet) {
     console.log("Testing for legacy");
 
     // Note that basefee is 25 gkei.
@@ -250,7 +227,7 @@ async function testGasPriceForLegacy(gasPrice: GasPrice, deployer: ethers.Wallet
     }
 }
 
-async function testGasPriceForType2(gasPrice: GasPrice, deployer: ethers.Wallet) {
+export async function testGasPriceForType2(gasPrice: GasPrice, deployer: ethers.Wallet) {
     console.log("Testing for type 2");
 
     // Note that basefee is 25 gkei
@@ -287,23 +264,3 @@ async function testGasPriceForType2(gasPrice: GasPrice, deployer: ethers.Wallet)
         );
     }
 }
-
-async function main() {
-    const { gasPrice, deployer, userPk } = await deployGasPrice();
-
-    await testGasPriceForType2(gasPrice, deployer);
-    await testGasPriceForLegacy(gasPrice, deployer);
-    await testGasPriceForKlaytnType(gasPrice, deployer, userPk);
-
-    // Test for the rewardFee > proposerFee
-    await testProposerReward(gasPrice, deployer);
-
-    console.log("All Tests Done, check the failed assertions above");
-}
-
-// We recommend this pattern to be able to use async/await everywhere
-// and properly handle errors.
-main().catch((error) => {
-    console.error(error);
-    process.exitCode = 1;
-});
