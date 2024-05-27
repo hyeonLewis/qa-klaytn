@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^2.0.2",
     "@openzeppelin/test-helpers": "^0.5.15",
     "@types/jquery": "^3.5.16",
     "@types/node": "^20.4.5",
@@ -16,11 +17,11 @@
     "hardhat": "^2.19.0",
     "hardhat-deploy": "^0.11.44",
     "openzeppelin-contracts-5.0": "npm:@openzeppelin/contracts@^5.0.2",
-    "@nomicfoundation/hardhat-toolbox": "^2.0.2",
     "ts-node": "^10.9.2",
     "tslib": "^2.6.1"
   },
   "dependencies": {
+    "@klaytn/ethers-ext": "^1.0.2",
     "axios": "^1.6.5",
     "bls-signatures": "^2.0.2",
     "caver-js": "^1.11.0",

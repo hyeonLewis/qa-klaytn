@@ -1,6 +1,7 @@
 import { assert } from "console";
 import { GasPrice, GasPrice__factory } from "../../../typechain-types";
 import { ethers } from "ethers";
+import { Wallet, JsonRpcProvider } from "@klaytn/ethers-ext";
 import { getEnv } from "../../common/utils";
 
 const url = "http://127.0.0.1:8551";
@@ -25,7 +26,7 @@ async function deployGasPrice() {
 
     console.log("GasPrice deployed to:", gasPrice.address);
 
-    return gasPrice;
+    return { gasPrice, userPk };
 }
 
 async function checkResult(
@@ -64,7 +65,7 @@ async function checkResult(
     // 5. Check the balance change
     assert(
         beforeBalance.sub(afterBalance).eq(testCase.expectedGasPrice * Number(receipt.gasUsed)),
-        `Expected ${beforeBalance.sub(afterBalance).toString()} to be equal to ${
+        `Expected proposer balance to be ${beforeBalance.sub(afterBalance).toString()}, got ${
             testCase.expectedGasPrice * Number(receipt.gasUsed)
         }`
     );
@@ -79,7 +80,60 @@ async function checkResult(
     );
 }
 
+async function testGasPriceForKlaytnType(gasPrice: GasPrice, userPk: string) {
+    console.log("Testing for Klaytn type");
+    // Note that basefee is 25 gkei.
+    // gasPrice - baseFee will be the gas tip.
+    const testCases = [
+        {
+            gasPrice: 26 * 1e9,
+            expectedGasPrice: 26 * 1e9,
+            expectedGasTip: 1 * 1e9,
+        },
+        {
+            gasPrice: 29 * 1e9,
+            expectedGasPrice: 29 * 1e9,
+            expectedGasTip: 4 * 1e9,
+        },
+        {
+            gasPrice: 25 * 1e9,
+            expectedGasPrice: 25 * 1e9,
+            expectedGasTip: 0,
+        },
+    ];
+
+    for (const testCase of testCases) {
+        const beforeBalance = await gasPrice.provider.getBalance(await gasPrice.signer.getAddress());
+
+        const klaytnProvider = new JsonRpcProvider(url);
+        const klaytnWallet = new Wallet(userPk, klaytnProvider);
+
+        const result = await klaytnWallet.sendTransaction({
+            to: gasPrice.address,
+            value: 0,
+            gasPrice: testCase.gasPrice,
+            data: gasPrice.interface.encodeFunctionData("increaseCount"),
+            type: 0x30, // SmartContractExecution
+        });
+        const receipt = await result.wait(1);
+
+        const gasPriceResult = (await gasPrice.getGasPrice()).map((x) => Number(x));
+        // console.log(gasPriceResult);
+
+        await checkResult(
+            gasPrice,
+            gasPriceResult,
+            testCase,
+            beforeBalance,
+            await gasPrice.provider.getBalance(await gasPrice.signer.getAddress()),
+            receipt
+        );
+    }
+}
+
 async function testGasPriceForLegacy(gasPrice: GasPrice) {
+    console.log("Testing for legacy");
+
     // Note that basefee is 25 gkei.
     // gasPrice - baseFee will be the gas tip.
     const testCases = [
@@ -125,6 +179,8 @@ async function testGasPriceForLegacy(gasPrice: GasPrice) {
 }
 
 async function testGasPriceForType2(gasPrice: GasPrice) {
+    console.log("Testing for type 2");
+
     // Note that basefee is 25 gkei
     const testCases = [
         { maxPriorityFeePerGas: 1 * 1e9, maxFeePerGas: 27 * 1e9, expectedGasPrice: 26 * 1e9, expectedGasTip: 1 * 1e9 },
@@ -158,9 +214,10 @@ async function testGasPriceForType2(gasPrice: GasPrice) {
 }
 
 async function main() {
-    const gasPrice = await deployGasPrice();
+    const { gasPrice, userPk } = await deployGasPrice();
     await testGasPriceForType2(gasPrice);
     await testGasPriceForLegacy(gasPrice);
+    await testGasPriceForKlaytnType(gasPrice, userPk);
 
     console.log("All Tests Done, check the failed assertions above");
 }
