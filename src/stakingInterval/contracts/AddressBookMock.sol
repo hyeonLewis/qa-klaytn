@@ -13,6 +13,7 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with the klaytn library. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: LGPL-3.0-only
 
 pragma solidity 0.8.25;
 

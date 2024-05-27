@@ -54,7 +54,7 @@ const config: HardhatUserConfig = {
         },
     },
     paths: {
-        sources: "./src/multicall/contracts",
+        sources: "./src/",
         deployments: "deployments",
     },
 };

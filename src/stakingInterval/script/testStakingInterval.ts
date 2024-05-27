@@ -2,6 +2,7 @@ import { assert } from "console";
 import { CnV1Mock__factory, CnV2Mock__factory, AddressBookMock__factory } from "../../../typechain-types";
 import * as dotenv from "dotenv";
 import { ethers } from "ethers";
+import { getEnv } from "../../common/utils";
 
 const abAddr = "0x0000000000000000000000000000000000000400";
 
@@ -10,12 +11,8 @@ const numCnV2 = 3;
 
 const url = "http://127.0.0.1:8551";
 
-const env = dotenv.config().parsed;
-
 async function testValSet(cns: string[], nodeIds: string[]) {
-    if (!env) {
-        throw new Error("No .env file found");
-    }
+    const env = getEnv();
 
     const pk = env["PRIVATE_KEY"];
     const provider = new ethers.providers.JsonRpcProvider(url);
@@ -70,9 +67,7 @@ async function testValSet(cns: string[], nodeIds: string[]) {
 }
 
 async function setup() {
-    if (!env) {
-        throw new Error("No .env file found");
-    }
+    const env = getEnv();
 
     const nodeId: string[] = [];
     const reward: string[] = [];
