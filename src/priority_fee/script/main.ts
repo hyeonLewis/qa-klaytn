@@ -4,7 +4,7 @@ import { getEnv } from "../../common/utils";
 import { testGasPriceForKlaytnType, testGasPriceForLegacy, testGasPriceForType2, testProposerReward } from "./gasprice";
 import { testTxSortingByGasTip } from "./tx_sorting";
 
-const url = "http://127.0.0.1:8552";
+const url = "http://127.0.0.1:8551";
 
 async function deployGasPrice() {
     const env = getEnv();
@@ -33,12 +33,12 @@ async function main() {
     const { gasPrice, deployer, userPk } = await deployGasPrice();
 
     /// General tests related to priority fee
-    // await testGasPriceForType2(gasPrice, deployer);
-    // await testGasPriceForLegacy(gasPrice, deployer);
-    // await testGasPriceForKlaytnType(gasPrice, deployer, userPk);
+    await testGasPriceForType2(gasPrice, deployer);
+    await testGasPriceForLegacy(gasPrice, deployer);
+    await testGasPriceForKlaytnType(gasPrice, deployer, userPk);
 
-    // // Test for the rewardFee > proposerFee
-    // await testProposerReward(gasPrice, deployer);
+    // Test for the rewardFee > proposerFee
+    await testProposerReward(gasPrice, deployer);
 
     /// Test for the tx sorting
     await testTxSortingByGasTip(gasPrice, deployer);

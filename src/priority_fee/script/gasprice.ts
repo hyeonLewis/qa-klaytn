@@ -3,7 +3,7 @@ import { GasPrice } from "../../../typechain-types";
 import { ethers } from "ethers";
 import { Wallet, JsonRpcProvider } from "@klaytn/ethers-ext";
 
-const url = "http://127.0.0.1:8552"; // Endpoint node
+const url = "http://127.0.0.1:8551"; // Endpoint node
 
 async function checkResult(
     gasPrice: GasPrice,
@@ -65,16 +65,21 @@ async function checkResult(
         totalFee === testCase.expectedGasPrice * Number(receipt.gasUsed),
         `Expected totalFee to be ${testCase.expectedGasPrice * Number(receipt.gasUsed)}, got ${totalFee.toString()}`
     );
+
+    // 8. Check `getRewards`: burntFee contains the gas tip
+    const burntFee = rewards.burntFee;
+    assert(
+        burntFee === testCase.expectedGasPrice * Number(receipt.gasUsed),
+        `Expected burntFee to be ${testCase.expectedGasPrice * Number(receipt.gasUsed)}, got ${totalFee.toString()}`
+    );
 }
 
 export async function testProposerReward(gasPrice: GasPrice, deployer: ethers.Wallet) {
     console.log("Testing proposer reward");
 
-    // Make effective gas price 20000 gkei
-    const maxFeePerGas = 20000 * 1e9;
-    const maxPriorityFeePerGas = 19975 * 1e9;
-
-    const proposerBeforeBalance = await deployer.getBalance();
+    // Make effective gas price 50000 gkei
+    const maxFeePerGas = 50000 * 1e9;
+    const maxPriorityFeePerGas = 49975 * 1e9;
 
     const result = await gasPrice.increaseCount({
         maxPriorityFeePerGas: maxPriorityFeePerGas,
@@ -82,6 +87,7 @@ export async function testProposerReward(gasPrice: GasPrice, deployer: ethers.Wa
     });
     const receipt = await result.wait(1);
 
+    const proposerBeforeBalance = await deployer.getBalance(receipt.blockNumber - 1);
     const proposerAfterBalance = await deployer.getBalance(receipt.blockNumber);
 
     // Assume reward ratio: 1) "34/54/12" and 2) "20/80".
@@ -147,7 +153,6 @@ export async function testGasPriceForKlaytnType(gasPrice: GasPrice, deployer: et
 
     for (const testCase of testCases) {
         const beforeBalance = await gasPrice.provider.getBalance(await gasPrice.signer.getAddress());
-        const proposerBeforeBalance = await deployer.getBalance();
 
         const klaytnProvider = new JsonRpcProvider(url);
         const klaytnWallet = new Wallet(userPk, klaytnProvider);
@@ -161,6 +166,7 @@ export async function testGasPriceForKlaytnType(gasPrice: GasPrice, deployer: et
         });
         const receipt = await result.wait(1);
 
+        const proposerBeforeBalance = await deployer.getBalance(receipt.blockNumber - 1);
         const gasPriceResult = (await gasPrice.getGasPrice()).map((x) => Number(x));
         // console.log(gasPriceResult);
 
@@ -202,7 +208,6 @@ export async function testGasPriceForLegacy(gasPrice: GasPrice, deployer: ethers
 
     for (const testCase of testCases) {
         const beforeBalance = await gasPrice.provider.getBalance(await gasPrice.signer.getAddress());
-        const proposerBeforeBalance = await deployer.getBalance();
 
         const result = await gasPrice.increaseCount({
             gasPrice: testCase.gasPrice,
@@ -210,6 +215,7 @@ export async function testGasPriceForLegacy(gasPrice: GasPrice, deployer: ethers
         });
 
         const receipt = await result.wait(1);
+        const proposerBeforeBalance = await deployer.getBalance(receipt.blockNumber - 1);
 
         const gasPriceResult = (await gasPrice.getGasPrice()).map((x) => Number(x));
         // console.log(gasPriceResult);
@@ -239,7 +245,6 @@ export async function testGasPriceForType2(gasPrice: GasPrice, deployer: ethers.
 
     for (const testCase of testCases) {
         const beforeBalance = await gasPrice.provider.getBalance(await gasPrice.signer.getAddress());
-        const proposerBeforeBalance = await deployer.getBalance();
 
         const result = await gasPrice.increaseCount({
             maxPriorityFeePerGas: testCase.maxPriorityFeePerGas,
@@ -248,6 +253,7 @@ export async function testGasPriceForType2(gasPrice: GasPrice, deployer: ethers.
         });
 
         const receipt = await result.wait(1);
+        const proposerBeforeBalance = await deployer.getBalance(receipt.blockNumber - 1);
 
         const gasPriceResult = (await gasPrice.getGasPrice()).map((x) => Number(x));
         // console.log(gasPriceResult);
