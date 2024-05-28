@@ -1,8 +1,14 @@
 import { GasPrice__factory } from "../../../typechain-types";
 import { ethers } from "ethers";
 import { getEnv } from "../../common/utils";
-import { testGasPriceForKlaytnType, testGasPriceForLegacy, testGasPriceForType2, testProposerReward } from "./gasprice";
-import { testTxSortingByGasTip } from "./tx_sorting";
+import {
+    testGasPriceForKlaytnType,
+    testGasPriceForLegacy,
+    testGasPriceForType2,
+    testProposerReward,
+    testProposerRewardFiveSenders,
+} from "./gasprice";
+import { testTxSortingByGasPrice, testTxSortingByGasPriceThreeUniqueSender } from "./tx_sorting";
 
 const url = "http://127.0.0.1:8551";
 
@@ -39,9 +45,11 @@ async function main() {
 
     // Test for the rewardFee > proposerFee
     await testProposerReward(gasPrice, deployer);
+    await testProposerRewardFiveSenders(gasPrice, deployer);
 
-    /// Test for the tx sorting
-    await testTxSortingByGasTip(gasPrice, deployer);
+    // Test for the tx sorting
+    await testTxSortingByGasPrice(gasPrice, deployer);
+    await testTxSortingByGasPriceThreeUniqueSender(gasPrice, deployer);
     console.log("All Tests Done, check the failed assertions above");
 }
 

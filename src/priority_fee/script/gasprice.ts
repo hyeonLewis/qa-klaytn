@@ -1,6 +1,6 @@
 import { assert } from "console";
 import { GasPrice } from "../../../typechain-types";
-import { ethers } from "ethers";
+import { BigNumber, ethers } from "ethers";
 import { Wallet, JsonRpcProvider } from "@klaytn/ethers-ext";
 
 const url = "http://127.0.0.1:8551"; // Endpoint node
@@ -72,6 +72,97 @@ async function checkResult(
         burntFee === testCase.expectedGasPrice * Number(receipt.gasUsed),
         `Expected burntFee to be ${testCase.expectedGasPrice * Number(receipt.gasUsed)}, got ${totalFee.toString()}`
     );
+}
+
+export async function testProposerRewardFiveSenders(gasPrice: GasPrice, deployer: ethers.Wallet) {
+    console.log("Testing proposer reward with five senders");
+
+    const signers = [];
+    for (let i = 0; i < 5; i++) {
+        const signer = new ethers.Wallet(ethers.utils.randomBytes(32), gasPrice.provider);
+        signers.push(signer);
+        await deployer.sendTransaction({
+            to: signer.address,
+            value: ethers.utils.parseEther("1"),
+        });
+    }
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+
+    // Make effective gas price 5000 gkei
+    const maxFeePerGas = 5000 * 1e9;
+    const maxPriorityFeePerGas = 4975 * 1e9;
+
+    const startBlock = await gasPrice.provider.getBlockNumber();
+    const txs = [];
+    for (let i = 0; i < 5; i++) {
+        const initialNonce = await signers[i].getTransactionCount();
+        for (let j = 0; j < 10; j++) {
+            txs.push(
+                await signers[i].sendTransaction({
+                    to: gasPrice.address,
+                    maxPriorityFeePerGas: maxPriorityFeePerGas,
+                    maxFeePerGas: maxFeePerGas,
+                    data: gasPrice.interface.encodeFunctionData("increaseCount"),
+                    nonce: initialNonce + j,
+                })
+            );
+        }
+    }
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+    const endBlock = await gasPrice.provider.getBlockNumber();
+
+    // map blocknumber to receipt array
+    for (let i = startBlock; i < endBlock; i++) {
+        const recipts = [];
+        const block = await gasPrice.provider.getBlock(i);
+        if (block.transactions.length === 0) {
+            continue;
+        }
+        for (const txHash of block.transactions) {
+            const tx = await gasPrice.provider.getTransaction(txHash);
+            if (tx.to === gasPrice.address) {
+                const receipt = await gasPrice.provider.getTransactionReceipt(txHash);
+                recipts.push(receipt);
+            }
+        }
+        const proposerBeforeBalance = await deployer.getBalance(i - 1);
+        const proposerAfterBalance = await deployer.getBalance(i);
+        let totalGasUsed = ethers.BigNumber.from(0);
+        for (const receipt of recipts) {
+            totalGasUsed = totalGasUsed.add(receipt.gasUsed);
+        }
+        const proposerAmount = ethers.utils.parseEther("0.6528");
+        const totalUsedFee = totalGasUsed.mul(maxFeePerGas);
+        let expectedRewardFee = totalUsedFee.div(2).sub(proposerAmount);
+        if (expectedRewardFee.lt(0)) {
+            expectedRewardFee = ethers.BigNumber.from(0);
+        }
+        const expectedBurntFee = totalUsedFee.div(2).add(proposerAmount);
+        const expectedProposerReward = expectedRewardFee.add(ethers.utils.parseEther("9.6"));
+
+        // 1. Check proposer reward
+        assert(
+            proposerAfterBalance.sub(proposerBeforeBalance).eq(expectedProposerReward),
+            `Expected proposer balance to be ${expectedProposerReward}, got ${proposerAfterBalance.sub(
+                proposerBeforeBalance
+            )}`
+        );
+
+        // 2. Check `getRewards`: totalFee, burntFee
+        const jsonProvider = new ethers.providers.JsonRpcProvider(url);
+        const rewards = await jsonProvider.send("kaia_getRewards", [i]);
+        const totalFee = rewards.totalFee;
+        const burntFee = rewards.burntFee;
+
+        assert(
+            totalFee === Number(totalUsedFee),
+            `Expected totalFee to be ${totalUsedFee}, got ${totalFee.toString()}`
+        );
+        assert(
+            burntFee === Number(expectedBurntFee),
+            `Expected burntFee to be ${expectedBurntFee}, got ${burntFee.toString()}`
+        );
+    }
 }
 
 export async function testProposerReward(gasPrice: GasPrice, deployer: ethers.Wallet) {
