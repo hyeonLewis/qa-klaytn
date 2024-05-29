@@ -1,4 +1,5 @@
 import * as dotenv from "dotenv";
+import { ethers } from "ethers";
 
 const env = dotenv.config().parsed;
 
@@ -8,3 +9,16 @@ export const getEnv = () => {
     }
     return env;
 };
+
+export async function populateSigners(fundingWallet: ethers.Wallet, number: number) {
+    const signers = [];
+    for (let i = 0; i < number; i++) {
+        const signer = ethers.Wallet.createRandom();
+        await fundingWallet.sendTransaction({
+            to: signer.address,
+            value: ethers.utils.parseEther("5.0"),
+        });
+        signers.push(signer);
+    }
+    return signers;
+}

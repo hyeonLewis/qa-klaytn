@@ -1,6 +1,7 @@
 import { assert } from "console";
 import { ethers } from "ethers";
 import { GasPrice } from "../../../typechain-types";
+import { populateSigners } from "../../common/utils";
 
 async function checkTxOrder(gasPrice: GasPrice, startBlock: number, endBlock: number, addresses: string[]) {
     for (let i = startBlock; i <= endBlock; i++) {
@@ -40,16 +41,7 @@ async function checkTxOrder(gasPrice: GasPrice, startBlock: number, endBlock: nu
 export async function testTxSortingByGasPriceThreeUniqueSender(gasPrice: GasPrice, deployer: ethers.Wallet) {
     console.log("Test for the tx sorting by gasTip with 3 unique senders");
 
-    const signers = [];
-
-    for (let i = 0; i < 3; i++) {
-        const signer = new ethers.Wallet(ethers.utils.randomBytes(32), gasPrice.provider);
-        signers.push(signer);
-        await deployer.sendTransaction({
-            to: signer.address,
-            value: ethers.utils.parseEther("5"),
-        });
-    }
+    const signers = await populateSigners(deployer, 3);
     const addresses = signers.map((x) => x.address);
     await new Promise((resolve) => setTimeout(resolve, 3000));
 
@@ -80,16 +72,7 @@ export async function testTxSortingByGasPriceThreeUniqueSender(gasPrice: GasPric
 export async function testTxSortingByGasPrice(gasPrice: GasPrice, deployer: ethers.Wallet) {
     console.log("Test for the tx sorting by gasTip");
 
-    const signers = [];
-
-    for (let i = 0; i < 30; i++) {
-        const signer = new ethers.Wallet(ethers.utils.randomBytes(32), gasPrice.provider);
-        signers.push(signer);
-        await deployer.sendTransaction({
-            to: signer.address,
-            value: ethers.utils.parseEther("1"),
-        });
-    }
+    const signers = await populateSigners(deployer, 30);
     const addresses = signers.map((x) => x.address);
     await new Promise((resolve) => setTimeout(resolve, 3000));
 

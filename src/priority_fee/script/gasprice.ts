@@ -2,6 +2,7 @@ import { assert } from "console";
 import { GasPrice } from "../../../typechain-types";
 import { BigNumber, ethers } from "ethers";
 import { Wallet, JsonRpcProvider } from "@klaytn/ethers-ext";
+import { populateSigners } from "../../common/utils";
 
 const url = "http://127.0.0.1:8551"; // Endpoint node
 
@@ -77,15 +78,7 @@ async function checkResult(
 export async function testProposerRewardFiveSenders(gasPrice: GasPrice, deployer: ethers.Wallet) {
     console.log("Testing proposer reward with five senders");
 
-    const signers = [];
-    for (let i = 0; i < 5; i++) {
-        const signer = new ethers.Wallet(ethers.utils.randomBytes(32), gasPrice.provider);
-        signers.push(signer);
-        await deployer.sendTransaction({
-            to: signer.address,
-            value: ethers.utils.parseEther("1"),
-        });
-    }
+    const signers = await populateSigners(deployer, 5);
     await new Promise((resolve) => setTimeout(resolve, 3000));
 
     // Make effective gas price 5000 gkei
