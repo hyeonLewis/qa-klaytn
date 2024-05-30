@@ -30,9 +30,9 @@ async function testValSet(cns: string[], nodeIds: string[]) {
     // 1. Demote/Promote validator 2 by withdrawing & depositing 4M.
     const cnV2 = CnV2Mock__factory.connect(cns[1], deployer);
     let tx = await cnV2.takeOut(ethers.utils.parseEther("4000000"));
-    await tx.wait(1);
+    let receipt = await tx.wait(1);
 
-    valSet = await provider.send("kaia_getCommittee", ["latest"]); // Council contains demoted validators.
+    valSet = await provider.send("kaia_getCommittee", [receipt.blockNumber + 1]); // Council contains demoted validators.
     console.log("valSet #1", valSet);
     assert(valSet.length === 3, "Demote failed");
     for (const val of valSet) {
@@ -40,9 +40,9 @@ async function testValSet(cns: string[], nodeIds: string[]) {
     }
 
     tx = await cnV2.deposit({ value: ethers.utils.parseEther("4000000") });
-    await tx.wait(1);
+    receipt = await tx.wait(1);
 
-    valSet = await provider.send("kaia_getCommittee", ["latest"]);
+    valSet = await provider.send("kaia_getCommittee", [receipt.blockNumber + 1]);
     console.log("valSet #2", valSet);
     assert(valSet.length === 4, "Promote failed");
     for (const val of valSet) {
@@ -53,10 +53,10 @@ async function testValSet(cns: string[], nodeIds: string[]) {
     for (let i = 0; i < 4; i++) {
         const cn = CnV2Mock__factory.connect(cns[i], deployer);
         tx = await cn.takeOut(await provider.getBalance(cns[i]));
-        await tx.wait(1);
+        receipt = await tx.wait(1);
     }
 
-    valSet = await provider.send("kaia_getCommittee", ["latest"]);
+    valSet = await provider.send("kaia_getCommittee", [receipt.blockNumber + 1]);
     console.log("valSet #3", valSet);
     assert(valSet.length === 4, "Withdraw failed");
     for (const val of valSet) {
