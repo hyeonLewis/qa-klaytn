@@ -9,6 +9,7 @@ import {
     testProposerRewardFiveSenders,
 } from "./gasprice";
 import { testTxSortingByGasPrice, testTxSortingByGasPriceThreeUniqueSender } from "./tx_sorting";
+import { testEthFeeHistoryReward, testEthGasPriceAndMaxPriorityTip } from "./api";
 
 const url = "http://127.0.0.1:8551";
 
@@ -50,6 +51,10 @@ async function main() {
     // Test for the tx sorting
     await testTxSortingByGasPrice(gasPrice, deployer);
     await testTxSortingByGasPriceThreeUniqueSender(gasPrice, deployer);
+
+    // Test RPC API changes
+    await testEthGasPriceAndMaxPriorityTip(deployer);
+    await testEthFeeHistoryReward(deployer);
     console.log("All Tests Done, check the failed assertions above");
 }
 
