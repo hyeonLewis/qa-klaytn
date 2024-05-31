@@ -9,15 +9,15 @@ import {
     testProposerRewardFiveSenders,
 } from "./gasprice";
 import { testTxSortingByGasPrice, testTxSortingByGasPriceThreeUniqueSender } from "./tx_sorting";
-import { testEthFeeHistoryReward, testEthGasPriceAndMaxPriorityTip } from "./api";
+import { testVariousForkLevels } from "./api";
 
-const url = "http://127.0.0.1:8551";
+export const url = "http://127.0.0.1:8551";
+export const provider = new ethers.providers.JsonRpcProvider(url);
 
 async function deployGasPrice() {
     const env = getEnv();
 
     const pk = env["PRIVATE_KEY"];
-    const provider = new ethers.providers.JsonRpcProvider(url);
     const deployer = new ethers.Wallet(pk, provider);
 
     const userPk = ethers.Wallet.createRandom().privateKey;
@@ -52,9 +52,8 @@ async function main() {
     await testTxSortingByGasPrice(gasPrice, deployer);
     await testTxSortingByGasPriceThreeUniqueSender(gasPrice, deployer);
 
-    // Test RPC API changes
-    await testEthGasPriceAndMaxPriorityTip(deployer);
-    await testEthFeeHistoryReward(deployer);
+    // Test RPC API changes - Test separately with enabling fork levels.
+    // await testVariousForkLevels(deployer);
     console.log("All Tests Done, check the failed assertions above");
 }
 
