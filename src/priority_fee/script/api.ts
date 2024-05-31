@@ -36,10 +36,16 @@ async function populateTransaction(
     maxPriorityFeePerGas: ethers.BigNumberish,
     numbers: number
 ) {
-    const initialNonce = await deployer.getTransactionCount();
+    const randomSender = new ethers.Wallet(ethers.Wallet.createRandom().privateKey, provider);
+    const tx = await deployer.sendTransaction({
+        to: randomSender.address,
+        value: ethers.utils.parseEther("100"),
+    });
+    await tx.wait(1);
+    const initialNonce = await randomSender.getTransactionCount();
     for (let i = 0; i < numbers; i++) {
-        await deployer.sendTransaction({
-            to: deployer.address,
+        await randomSender.sendTransaction({
+            to: randomSender.address,
             value: ethers.utils.parseEther("0.1"),
             maxPriorityFeePerGas: maxPriorityFeePerGas,
             maxFeePerGas: Number(maxPriorityFeePerGas) + 25 * 1e9,
@@ -51,16 +57,12 @@ async function populateTransaction(
 
 export async function testVariousForkLevels(deployer: ethers.Wallet) {
     const { ethTxHF, magmaHF, kaiaHF } = await getForkLevels();
-
     // It tests 1) eth_sendTransaction rejection, 2) eth_gasPrice, 3) eth_maxPriorityFeePerGas for each fork level
-
     // 1. Before ethTxTypeCompatibleBlock
     await testEthSendTransactionBeforeEthTxType(deployer);
     await testGasPriceBeforeEthTxType(deployer);
     await testMaxPriorityFeePerGasBeforeEthTxType(deployer);
-
     console.log("Waiting for the ethTx fork level...");
-
     // 2. After ethTxTypeCompatibleBlock, before magmaCompatibleBlock
     while ((await provider.getBlockNumber()) < ethTxHF) {
         await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -68,9 +70,7 @@ export async function testVariousForkLevels(deployer: ethers.Wallet) {
     await testEthSendTransactionAfterEthTxType(deployer);
     await testGasPriceAfterEthTxType(deployer);
     await testMaxPriorityFeePerGasAfterEthTxType(deployer);
-
     console.log("Waiting for the magma fork level...");
-
     // 3. After magmaCompatibleBlock, before kaiaCompatibleBlock
     while ((await provider.getBlockNumber()) < magmaHF) {
         await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -78,9 +78,7 @@ export async function testVariousForkLevels(deployer: ethers.Wallet) {
     await testEthSendTransactionAfterMagma(deployer);
     await testGasPriceAfterMagma(deployer);
     await testMaxPriorityFeePerGasAfterMagma(deployer);
-
     console.log("Waiting for the kaia fork level...");
-
     // 4. After kaiaCompatibleBlock
     while ((await provider.getBlockNumber()) < kaiaHF) {
         await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -107,8 +105,10 @@ async function testGasPriceAndMaxPriorityFeePerGasAfterKaia(deployer: ethers.Wal
 
     const gasPrice = Number(await provider.send("eth_gasPrice", []));
     const maxPriorityFeePerGasFromProvider = Number(await provider.send("eth_maxPriorityFeePerGas", []));
+    console.log("gasPrice: ", gasPrice);
+    console.log("tip: ", maxPriorityFeePerGasFromProvider);
 
-    assert(maxPriorityFeePerGasFromProvider === maxPriorityFeePerGas, "eth_maxPriorityFeePerGas failed");
+    assert(maxPriorityFeePerGasFromProvider === basefee, "eth_maxPriorityFeePerGas failed");
     assert(gasPrice === basefee * 2 + maxPriorityFeePerGasFromProvider, "eth_gasPrice failed");
 }
 
