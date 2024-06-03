@@ -18,7 +18,7 @@ export async function populateSigners(fundingWallet: ethers.Wallet, number: numb
             to: signer.address,
             value: ethers.utils.parseEther("5.0"),
         });
-        signers.push(signer);
+        signers.push(new ethers.Wallet(signer.privateKey, fundingWallet.provider));
     }
     return signers;
 }

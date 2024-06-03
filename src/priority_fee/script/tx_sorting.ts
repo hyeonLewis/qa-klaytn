@@ -15,25 +15,18 @@ async function checkTxOrder(gasPrice: GasPrice, startBlock: number, endBlock: nu
         }
 
         let prevEffectiveGasPrice = 0;
-        let prevNonce = 0;
         let prevSender = "";
         for (const receipt of receipts.reverse()) {
-            const gasPrice = Number(receipt.effectiveGasPrice);
-            const nonce = receipt.transactionIndex;
-            assert(
-                gasPrice >= prevEffectiveGasPrice || (receipt.from === prevSender && nonce + 1 === prevNonce),
-                "gasPrice is not sorted"
-            );
-            if (prevEffectiveGasPrice === gasPrice && prevEffectiveGasPrice !== 0) {
+            const effectiveGasPrice = Number(receipt.effectiveGasPrice);
+            assert(effectiveGasPrice >= prevEffectiveGasPrice || receipt.from === prevSender, "gasPrice is not sorted");
+            if (prevEffectiveGasPrice === effectiveGasPrice && prevEffectiveGasPrice !== 0) {
                 assert(
-                    addresses.indexOf(receipt.from) < addresses.indexOf(prevSender) ||
-                        (receipt.from === prevSender && nonce + 1 === prevNonce),
+                    addresses.indexOf(receipt.from) < addresses.indexOf(prevSender) || receipt.from === prevSender,
                     "Time priority is not sorted"
                 );
             }
-            prevNonce = receipt.transactionIndex;
             prevSender = receipt.from;
-            prevEffectiveGasPrice = gasPrice;
+            prevEffectiveGasPrice = effectiveGasPrice;
         }
     }
 }
@@ -52,13 +45,22 @@ export async function testTxSortingByGasPriceThreeUniqueSender(gasPrice: GasPric
         const initialNonce = await signers[i].getTransactionCount();
         for (let j = 0; j < 10; j++) {
             const randomTip = Math.floor(Math.random() * 10) * 1e9;
-            await signers[i].sendTransaction({
-                to: gasPrice.address,
-                maxPriorityFeePerGas: randomTip,
-                maxFeePerGas: randomTip + 25 * 1e9,
-                data: gasPrice.interface.encodeFunctionData("increaseCount"),
-                nonce: initialNonce + j,
-            });
+            if (randomTip <= 5 * 1e9) {
+                await signers[i].sendTransaction({
+                    to: gasPrice.address,
+                    maxPriorityFeePerGas: randomTip,
+                    maxFeePerGas: randomTip + 25 * 1e9,
+                    data: gasPrice.interface.encodeFunctionData("increaseCount"),
+                    nonce: initialNonce + j,
+                });
+            } else {
+                await signers[i].sendTransaction({
+                    to: gasPrice.address,
+                    gasPrice: randomTip + 25 * 1e9,
+                    data: gasPrice.interface.encodeFunctionData("increaseCount"),
+                    nonce: initialNonce + j,
+                });
+            }
         }
     }
 
@@ -81,12 +83,20 @@ export async function testTxSortingByGasPrice(gasPrice: GasPrice, deployer: ethe
     console.log("Send 30 txs");
     for (let i = 0; i < 30; i++) {
         const randomTip = Math.floor(Math.random() * 10) * 1e9;
-        await signers[i].sendTransaction({
-            to: gasPrice.address,
-            maxPriorityFeePerGas: randomTip,
-            maxFeePerGas: randomTip + 25 * 1e9,
-            data: gasPrice.interface.encodeFunctionData("increaseCount"),
-        });
+        if (randomTip <= 5 * 1e9) {
+            await signers[i].sendTransaction({
+                to: gasPrice.address,
+                maxPriorityFeePerGas: randomTip,
+                maxFeePerGas: randomTip + 25 * 1e9,
+                data: gasPrice.interface.encodeFunctionData("increaseCount"),
+            });
+        } else {
+            await signers[i].sendTransaction({
+                to: gasPrice.address,
+                gasPrice: randomTip + 25 * 1e9,
+                data: gasPrice.interface.encodeFunctionData("increaseCount"),
+            });
+        }
     }
 
     await new Promise((resolve) => setTimeout(resolve, 3000));

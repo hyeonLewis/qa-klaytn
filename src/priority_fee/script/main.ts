@@ -41,23 +41,27 @@ async function deployGasPrice(deploy = true) {
 }
 
 async function main() {
-    const { gasPrice, deployer, userPk } = await deployGasPrice(false);
+    const deploy = true;
+    const { gasPrice, deployer, userPk } = await deployGasPrice(deploy);
+    if (deploy && !gasPrice) {
+        throw new Error("GasPrice contract is not deployed");
+    }
 
     /// General tests related to priority fee
-    // await testGasPriceForType2(gasPrice, deployer);
-    // await testGasPriceForLegacy(gasPrice, deployer);
-    // await testGasPriceForKlaytnType(gasPrice, deployer, userPk);
+    await testGasPriceForType2(gasPrice!, deployer);
+    await testGasPriceForLegacy(gasPrice!, deployer);
+    await testGasPriceForKlaytnType(gasPrice!, deployer, userPk);
 
-    // // Test for the rewardFee > proposerFee
-    // await testProposerReward(gasPrice, deployer);
-    // await testProposerRewardFiveSenders(gasPrice, deployer);
+    // Test for the rewardFee > proposerFee
+    await testProposerReward(gasPrice!, deployer);
+    await testProposerRewardFiveSenders(gasPrice!, deployer);
 
-    // // Test for the tx sorting
-    // await testTxSortingByGasPrice(gasPrice, deployer);
-    // await testTxSortingByGasPriceThreeUniqueSender(gasPrice, deployer);
+    // Test for the tx sorting
+    await testTxSortingByGasPrice(gasPrice!, deployer);
+    await testTxSortingByGasPriceThreeUniqueSender(gasPrice!, deployer);
 
     // Test RPC API changes - Test separately with enabling fork levels.
-    await testVariousForkLevels(deployer);
+    // await testVariousForkLevels(deployer);
     console.log("All Tests Done, check the failed assertions above");
 }
 
