@@ -108,8 +108,8 @@ async function testGasPriceAndMaxPriorityFeePerGasAfterKaia(deployer: ethers.Wal
     console.log("gasPrice: ", gasPrice);
     console.log("tip: ", maxPriorityFeePerGasFromProvider);
 
-    assert(maxPriorityFeePerGasFromProvider === basefee, "eth_maxPriorityFeePerGas failed");
-    assert(gasPrice === basefee * 2 + maxPriorityFeePerGasFromProvider, "eth_gasPrice failed");
+    assert(maxPriorityFeePerGasFromProvider === maxPriorityFeePerGas, "eth_maxPriorityFeePerGas failed");
+    assert(gasPrice === basefee + maxPriorityFeePerGasFromProvider, "eth_gasPrice failed");
 }
 
 async function testEthSendTransactionAfterKaia(deployer: ethers.Wallet) {
