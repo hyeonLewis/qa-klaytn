@@ -14,7 +14,7 @@ const provider = new ethers.providers.JsonRpcProvider(url);
 export async function setup() {
     const chainConfig = await provider.send("kaia_getChainConfig", []);
     const kaiaHF = Number(chainConfig["kaiaCompatibleBlock"]);
-    if (!kaiaHF) {
+    if (kaiaHF !== 0 && !kaiaHF) {
         throw new Error("kaiaCompatibleBlock not found");
     }
     const env = getEnv();
@@ -66,9 +66,9 @@ export async function setup() {
     await tx.wait(1);
 
     tx = await addressBook.activateAddressBook();
-    await tx.wait(1);
+    const res = await tx.wait(1);
 
-    console.log("CNs registered in AddressBook");
+    console.log("CNs registered in AddressBook", res.blockNumber);
 
     return { kaiaHF, cnList, nodeId };
 }

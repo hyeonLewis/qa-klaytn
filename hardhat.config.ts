@@ -3,6 +3,8 @@ import "hardhat-deploy";
 import "@nomicfoundation/hardhat-toolbox";
 import * as dotenv from "dotenv";
 
+export const env = dotenv.config().parsed;
+
 const defaultKey = "0x00000000000000000000000000000000000000000000000000000000cafebabe";
 
 const config: HardhatUserConfig = {
@@ -31,7 +33,7 @@ const config: HardhatUserConfig = {
         },
         homi: {
             url: "http://127.0.0.1:8551",
-            accounts: [process.env.PRIVATE_KEY || defaultKey],
+            accounts: [env?.["PRIVATE_KEY"] || defaultKey || defaultKey],
             live: false,
             saveDeployments: false,
         },

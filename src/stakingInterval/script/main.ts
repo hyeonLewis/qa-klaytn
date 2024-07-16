@@ -6,8 +6,8 @@ import { testValSetForKaiaParent } from "./testForKaiaParent";
 export const url = "http://127.0.0.1:8551";
 export const provider = new ethers.providers.JsonRpcProvider(url);
 
-const isTestParent = true;
-const waitForHF = true;
+const isTestParent = false;
+const waitForHF = false;
 
 async function main() {
     const { kaiaHF, cnList, nodeId } = await setup();

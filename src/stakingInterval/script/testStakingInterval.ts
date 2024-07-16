@@ -28,7 +28,7 @@ export async function testValSet(cns: string[], nodeIds: string[], kaiaHF: numbe
     let receipt = await tx.wait(1);
 
     valSet = await provider.send("kaia_getCommittee", [receipt.blockNumber + 1]); // Council contains demoted validators.
-    console.log("valSet #1", valSet);
+    console.log("valSet #1", valSet, receipt.blockNumber);
     if (receipt.blockNumber + 1 < kaiaHF) {
         checkValSet(nodeIds, valSet, 4);
     } else {
@@ -39,7 +39,7 @@ export async function testValSet(cns: string[], nodeIds: string[], kaiaHF: numbe
     receipt = await tx.wait(1);
 
     valSet = await provider.send("kaia_getCommittee", [receipt.blockNumber + 1]);
-    console.log("valSet #2", valSet);
+    console.log("valSet #2", valSet, receipt.blockNumber);
     if (receipt.blockNumber + 1 < kaiaHF) {
         checkValSet(nodeIds, valSet, 4);
     } else {
@@ -60,7 +60,7 @@ export async function testValSet(cns: string[], nodeIds: string[], kaiaHF: numbe
             }
         }
     }
-    console.log("valSet #3", valSet);
+    console.log("valSet #3", valSet, receipt.blockNumber);
     checkValSet(nodeIds, valSet, 4);
 
     console.log("Staking interval test ended");
