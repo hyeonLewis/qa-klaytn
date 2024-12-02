@@ -26,6 +26,7 @@
     "bls-signatures": "^2.0.2",
     "caver-js": "^1.11.0",
     "dotenv": "^16.3.2",
-    "ethers": "^5.7.0"
+    "ethers": "^5.7.0",
+    "plotly": "^1.0.6"
   }
 }
