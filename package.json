@@ -21,12 +21,12 @@
     "tslib": "^2.6.1"
   },
   "dependencies": {
-    "@klaytn/ethers-ext": "^1.0.2",
+    "@kaiachain/ethers-ext": "^1.1.1",
     "axios": "^1.6.5",
     "bls-signatures": "^2.0.2",
     "caver-js": "^1.11.0",
     "dotenv": "^16.3.2",
-    "ethers": "^5.7.0",
+    "ethers": "^5.7.2",
     "plotly": "^1.0.6"
   }
 }
