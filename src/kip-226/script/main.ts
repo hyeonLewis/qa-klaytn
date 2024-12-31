@@ -77,7 +77,7 @@ class StakingInfoChecker {
   async checkGetStakingInfo(bn: number) {
     console.log("Checking getStakingInfo at block: ", bn);
     const stakingInfos = await provider.send("kaia_getStakingInfo", [bn]);
-    if (bn >= this.pragueHF + 1) {
+    if (bn >= this.pragueHF) {
       this.checkAddressBookStakingInfo(stakingInfos);
       this.checkCLStakingInfo(stakingInfos);
     } else {
@@ -90,7 +90,7 @@ class StakingInfoChecker {
     console.log("Checking reward distribution at block: ", bn);
     const rewards = await provider.send("kaia_getRewards", [bn]);
     const proposerAddr = await this.getProposerAddr(bn);
-    if (bn >= this.pragueHF + 1) {
+    if (bn >= this.pragueHF) {
       await this.checkCLRewardDistribution(rewards, proposerAddr, bn);
     } else {
       await this.checkAddressBookRewardDistribution(rewards, proposerAddr, bn);
