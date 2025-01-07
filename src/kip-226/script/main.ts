@@ -1,5 +1,5 @@
 import { ethers } from "ethers";
-import { closeTo, getBalance, provider, setupCLs, setupCNs } from "./common";
+import { closeTo, deleteAllCLs, getBalance, provider, setupCLs, setupCNs } from "./common";
 import { getEnv, getHF } from "../../common/utils";
 import { assert } from "console";
 import { CLMock__factory, CNMock__factory } from "../../../typechain-types";
@@ -72,6 +72,11 @@ class StakingInfoChecker {
       clRewards: clStakingLists.map((reward: string) => reward.toLowerCase()),
     };
     this.clStakingAmounts = clAmounts.map((amount: ethers.BigNumber) => Number(ethers.utils.formatEther(amount)));
+  }
+
+  async deleteCLs() {
+    console.log("Deleting CLs at block: ", await provider.getBlockNumber());
+    await deleteAllCLs();
   }
 
   async checkGetStakingInfo(bn: number) {
@@ -409,11 +414,13 @@ async function main() {
     bn = await provider.getBlockNumber();
   }
 
-  while (bn < pragueHF + 180) {
+  while (bn < pragueHF + 160) {
     await checker.checkValidatorsWithTxFee(bn);
     await new Promise((resolve) => setTimeout(resolve, 1000));
     bn = await provider.getBlockNumber();
   }
+
+  await checker.deleteCLs();
 
   console.log("Done");
 }

@@ -130,3 +130,19 @@ export async function setupCLs(clNodeIds: string[], pragueHF: number) {
 
   return { clNodeIds, clPoolLists, clStakingLists, clAmounts };
 }
+
+export async function deleteAllCLs() {
+  const env = getEnv();
+  const pk = env["PRIVATE_KEY"];
+  const deployer = new ethers.Wallet(pk, provider);
+
+  const registry = IRegistry__factory.connect(registryAddr, deployer);
+  const clRegistryAddr = await registry.getActiveAddr("CLRegistry");
+  const clRegistry = CLRegistryMock__factory.connect(clRegistryAddr, deployer);
+  const gcIds = await clRegistry.getAllGCIds();
+
+  for (const gcId of gcIds) {
+    const tx = await clRegistry.removeCLPair(gcId);
+    await tx.wait(1);
+  }
+}
