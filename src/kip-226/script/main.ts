@@ -393,7 +393,7 @@ class StakingInfoChecker {
 
 async function main() {
   const env = getEnv();
-  const pragueHF = await getHF(provider, "pragueCompatibleBlock");
+  const pragueHF = await getHF("pragueCompatibleBlock");
   console.log("pragueHF", pragueHF);
   const signer = new ethers.Wallet(env["PRIVATE_KEY"], provider);
   const checker = new StakingInfoChecker(signer, pragueHF);

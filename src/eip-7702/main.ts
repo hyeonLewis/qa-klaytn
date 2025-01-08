@@ -418,7 +418,7 @@ class TestEIP7702 {
 
 async function main() {
   const env = getEnv();
-  const pragueHF = await getHF(provider, "pragueCompatibleBlock");
+  const pragueHF = await getHF("pragueCompatibleBlock");
   console.log("pragueHF", pragueHF);
 
   const signer = new Wallet(env["PRIVATE_KEY"], provider);
