@@ -6,7 +6,11 @@ import { getHF } from "../common/utils";
 import { getEnv } from "../common/utils";
 import { assert } from "console";
 import { computePublicKey } from "ethers/lib/utils";
-import { genAccountUpdateRelatedTx, genSmartContractExecutionRelatedTx, genValueTransferRelatedTx } from "./genTx";
+import {
+  genAccountUpdateRelatedTx,
+  genSmartContractExecutionRelatedTx,
+  genValueTransferRelatedTx,
+} from "./genTx";
 
 export const url = "http://127.0.0.1:8551";
 export const provider = new JsonRpcProvider(url);
@@ -71,10 +75,12 @@ class TestEIP7702 {
 
     await this.waitTime(2000);
 
+    console.log("delegation deployed at", this.delegation.address);
+
     // This is the pre-calculated tx data for SetCodeTx.
     // It'll set the code ofr delegation contract to eoaWithCode.
     const tx = await provider.send("kaia_sendRawTransaction", [
-      "0x7804f8ca8203e88014850ba43b74008307a12094aa3d17d2a89d79c8d7e3e11406c49d21d468d7f28080c0f85ef85c8203e894e9f00c100f34decaf94297132ab80aee2e4c5b660180a06a7a860c945a15e7585865470bf642bae57bf452569c3966a8c998d31cbcbdfca0588cf1a59f054cc0aa1984ba1bde50559babfdc04246de0afdcbb69a5950a4c501a099fc603660eaf05f62b53ed05e5a1f8113e97c26e1c93f290dea3930633a38cda023e90c6627b440ed147ff98dc2d5ec4c3aa817615b7cd459f1bdeabeb134c27c",
+      "0x7804f8ca8203e88014850ba43b74008307a12094aa3d17d2a89d79c8d7e3e11406c49d21d468d7f28080c0f85ef85c8203e89453f0899cb710f92163b6824faf9149550a803caa0101a07cd70f304d303750c55105708ddb644f81cb5c6d083c88fe83725b92a80a99b1a00ec3e1ca712580c012af3f2a150f7a5ee9c82864cff54b40240b0c9079db34ad80a012387725d6264cbedaaf3fb5fee6172e69262e97058fb3aef6506e479b8c40f8a033bc670442981c9e604df4447d7c8715ded4b31dc77ea71f69cce1091063c30f",
     ]);
 
     await this.waitTime(2000);
@@ -82,16 +88,28 @@ class TestEIP7702 {
     const receipt = await provider.send("kaia_getTransactionReceipt", [tx]);
     assert(receipt.type === "TxTypeEthereumSetCode", "SetCodeTx type mismatch");
     assert(receipt.typeInt === 30724, "SetCodeTx type mismatch");
-    assert(receipt.authorizationList[0].chainId === 1000, "Authorization list chainId mismatch");
     assert(
-      receipt.authorizationList[0].address.toLowerCase() === this.delegation.address.toLowerCase(),
+      receipt.authorizationList[0].chainId === "1000",
+      "Authorization list chainId mismatch"
+    );
+    assert(
+      receipt.authorizationList[0].address.toLowerCase() ===
+        this.delegation.address.toLowerCase(),
       "Authorization list address mismatch"
     );
-    assert(receipt.authorizationList[0].nonce === 1, "Authorization list nonce mismatch");
+    assert(
+      receipt.authorizationList[0].nonce === 1,
+      "Authorization list nonce mismatch"
+    );
 
-    this.codeHash = ethers.utils.keccak256("0xef0100" + this.delegation.address.slice(2));
+    this.codeHash = ethers.utils.keccak256(
+      "0xef0100" + this.delegation.address.slice(2).toLowerCase()
+    );
 
-    this.eoaWithCodeInstance = Delegation__factory.connect(this.eoaWithCode.address, this.signer);
+    this.eoaWithCodeInstance = Delegation__factory.connect(
+      this.eoaWithCode.address,
+      this.signer
+    );
   }
 
   async reset() {
@@ -108,10 +126,16 @@ class TestEIP7702 {
   /***************** TEST FUNCTIONS *****************/
 
   async testCode(isEmpty = false) {
-    console.log("Checking code", this.eoaWithCode.address, isEmpty ? "after reset" : "after set");
+    console.log(
+      "Checking code",
+      this.eoaWithCode.address,
+      isEmpty ? "after reset" : "after set"
+    );
 
-    const codeFields = await this.getCodeFieldsOfEoaWithCode();
-    const code = (await provider.getCode(this.eoaWithCode.address)).toLowerCase();
+    const codeFieldsFromVM = await this.getCodeFieldsOfEoaWithCode();
+    const code = (
+      await provider.getCode(this.eoaWithCode.address)
+    ).toLowerCase();
     const accountInfo = await this.getAccountInfo(this.eoaWithCode.address);
     const isContract = await this.isContractAccount(this.eoaWithCode.address);
 
@@ -121,30 +145,40 @@ class TestEIP7702 {
       assert(code === "0x", "Code mismatch");
       assert(accountInfo.account.vmVersion === 0, "vmVersion mismatch");
       assert(!isContract, "isContract mismatch");
-      const emptyCodeHash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(""));
-      const emptyCodeHashBase64 = Buffer.from(emptyCodeHash.slice(2), "hex").toString("base64");
-      assert(accountInfo.account.codeHash === emptyCodeHashBase64, "codeHash mismatch");
-
-      assert(codeFields[0] === "0x", "Code mismatch");
-      assert(codeFields[1] === emptyCodeHash, "Codehash mismatch");
-      assert(codeFields[2].eq(0), "Size mismatch");
-    } else {
-      assert(code === "0xef0100" + this.delegation.address.slice(2).toLowerCase(), "Code mismatch");
-      assert(accountInfo.account.vmVersion === 1, "vmVersion mismatch");
-      assert(isContract, "isContract mismatch");
+      const emptyCodeHash = ethers.utils.keccak256(
+        ethers.utils.toUtf8Bytes("")
+      );
+      const emptyCodeHashBase64 = Buffer.from(
+        emptyCodeHash.slice(2),
+        "hex"
+      ).toString("base64");
       assert(
-        accountInfo.account.codeHash === Buffer.from(this.codeHash.slice(2), "hex").toString("base64"),
+        accountInfo.account.codeHash === emptyCodeHashBase64,
         "codeHash mismatch"
       );
 
-      const codeOfDelegation = await provider.getCode(this.delegation.address);
-      assert(codeFields[0] === codeOfDelegation, "Code mismatch");
+      assert(codeFieldsFromVM[0] === "0x", "Code mismatch");
+      assert(codeFieldsFromVM[1] === emptyCodeHash, "Codehash mismatch");
+      assert(codeFieldsFromVM[2].eq(0), "Size mismatch");
+    } else {
       assert(
-        codeFields[1].toLowerCase() === ethers.utils.keccak256(codeOfDelegation).toLowerCase(),
-        "Codehash mismatch"
+        code === "0xef0100" + this.delegation.address.slice(2).toLowerCase(),
+        "Code mismatch rpc"
       );
-      // Exclude the 0x prefix
-      assert(codeFields[2].eq((codeOfDelegation.length - 2) / 2), "Size mismatch");
+      assert(accountInfo.account.vmVersion === 1, "vmVersion mismatch");
+      assert(isContract, "isContract mismatch");
+      assert(
+        accountInfo.account.codeHash ===
+          Buffer.from(this.codeHash.slice(2), "hex").toString("base64"),
+        "codeHash mismatch rpc"
+      );
+
+      assert(codeFieldsFromVM[0].toLowerCase() === code, "Code mismatch vm");
+      assert(
+        codeFieldsFromVM[1].toLowerCase() === this.codeHash,
+        "Codehash mismatch vm"
+      );
+      assert(codeFieldsFromVM[2].eq(23), "Size mismatch vm");
     }
   }
 
@@ -177,7 +211,9 @@ class TestEIP7702 {
       assert(false, "Transaction should be rejected");
     } catch (e: any) {
       assert(
-        e.message.includes("a legacy transaction must be with a legacy account key"),
+        e.message.includes(
+          "a legacy transaction must be with a legacy account key"
+        ),
         "Transaction should be rejected"
       );
     }
@@ -186,7 +222,10 @@ class TestEIP7702 {
   /***************** PRIVATE FUNCTIONS *****************/
 
   private async testToMustBeEoaWithoutCode(isSetCode = true) {
-    console.log("Checking to must be EOA without code", isSetCode ? "after setCode" : "after reset");
+    console.log(
+      "Checking to must be EOA without code",
+      isSetCode ? "after setCode" : "after reset"
+    );
 
     // `to` is eoaWithCode
     const txs = await genValueTransferRelatedTx(
@@ -203,7 +242,10 @@ class TestEIP7702 {
           await provider.send("kaia_sendRawTransaction", [tx]);
           assert(false, "Transaction should be rejected");
         } catch (e: any) {
-          assert(e.message.includes("recipient must be an EOA without code"), "Recipient must be an EOA without code");
+          assert(
+            e.message.includes("recipient must be an EOA without code"),
+            "Recipient must be an EOA without code"
+          );
         }
       }
     } else {
@@ -222,11 +264,19 @@ class TestEIP7702 {
   }
 
   private async testFromMustBeEoaWithoutCode(isSetCode = true) {
-    console.log("Checking from must be EOA without code", isSetCode ? "after setCode" : "after reset");
-    const randomKeys = Array.from({ length: 3 }, () => Wallet.createRandom().privateKey);
+    console.log(
+      "Checking from must be EOA without code",
+      isSetCode ? "after setCode" : "after reset"
+    );
+    const randomKeys = Array.from(
+      { length: 3 },
+      () => Wallet.createRandom().privateKey
+    );
     const wallets = isSetCode
       ? [this.eoaWithCode, this.eoaWithCode]
-      : randomKeys.map((key) => new Wallet(this.eoaWithCode.address, key, provider));
+      : randomKeys.map(
+          (key) => new Wallet(this.eoaWithCode.address, key, provider)
+        );
 
     const txs = await genAccountUpdateRelatedTx(
       this.eoaWithCode.address,
@@ -241,7 +291,10 @@ class TestEIP7702 {
           await provider.send("kaia_sendRawTransaction", [tx]);
           assert(false, "Transaction should be rejected");
         } catch (e: any) {
-          assert(e.message.includes("sender must be an EOA without code"), "Sender must be an EOA without code");
+          assert(
+            e.message.includes("sender must be an EOA without code"),
+            "Sender must be an EOA without code"
+          );
         }
       }
     } else {
@@ -260,7 +313,10 @@ class TestEIP7702 {
   }
 
   private async testToMustBeEoaWithCodeOrSCA(isSetCode = true) {
-    console.log("Checking to must be EOA with code or SCA", isSetCode ? "after setCode" : "after reset");
+    console.log(
+      "Checking to must be EOA with code or SCA",
+      isSetCode ? "after setCode" : "after reset"
+    );
 
     const txs = await genSmartContractExecutionRelatedTx(
       this.eoaWithoutCode.address,
@@ -366,32 +422,44 @@ class TestEIP7702 {
   }
 
   private async callIncrement() {
-    const tx = await this.delegation.callIncrement(this.eoaWithCodeInstance.address);
+    const tx = await this.delegation.callIncrement(
+      this.eoaWithCodeInstance.address
+    );
     await tx.wait(1);
   }
 
   private async callIncrementFromEoaWithCode() {
-    const tx = await this.eoaWithCodeInstance.callIncrement(this.delegation.address);
+    const tx = await this.eoaWithCodeInstance.callIncrement(
+      this.delegation.address
+    );
     await tx.wait(1);
   }
 
   private async delegatecallIncrement() {
-    const tx = await this.delegation.delegatecallIncrement(this.eoaWithCodeInstance.address);
+    const tx = await this.delegation.delegatecallIncrement(
+      this.eoaWithCodeInstance.address
+    );
     await tx.wait(1);
   }
 
   private async delegatecallIncrementFromEoaWithCode() {
-    const tx = await this.eoaWithCodeInstance.delegatecallIncrement(this.delegation.address);
+    const tx = await this.eoaWithCodeInstance.delegatecallIncrement(
+      this.delegation.address
+    );
     await tx.wait(1);
   }
 
   private async callcodeIncrement() {
-    const tx = await this.delegation.callcodeIncrement(this.eoaWithCodeInstance.address);
+    const tx = await this.delegation.callcodeIncrement(
+      this.eoaWithCodeInstance.address
+    );
     await tx.wait(1);
   }
 
   private async callcodeIncrementFromEoaWithCode() {
-    const tx = await this.eoaWithCodeInstance.callcodeIncrement(this.delegation.address);
+    const tx = await this.eoaWithCodeInstance.callcodeIncrement(
+      this.delegation.address
+    );
     await tx.wait(1);
   }
 
@@ -400,7 +468,9 @@ class TestEIP7702 {
   }
 
   private async getCodeFieldsOfEoaWithCode() {
-    return await this.delegation.getCodeFields(this.eoaWithCodeInstance.address);
+    return await this.delegation.getCodeFields(
+      this.eoaWithCodeInstance.address
+    );
   }
 
   private async getAccountInfo(address: string) {
@@ -435,7 +505,9 @@ async function main() {
   await test.testCode();
   await test.testExecution();
 
-  console.log("\n==================== TESTING OTHER TX TYPES =========================");
+  console.log(
+    "\n==================== TESTING OTHER TX TYPES ========================="
+  );
 
   await test.testKaiaTypeTxs(true);
 
@@ -444,11 +516,15 @@ async function main() {
   await test.reset();
   await test.testCode(true);
 
-  console.log("\n==================== TESTING OTHER TX TYPES (after reset) =========================");
+  console.log(
+    "\n==================== TESTING OTHER TX TYPES (after reset) ========================="
+  );
 
   await test.testKaiaTypeTxs(false);
 
-  console.log("\n==================== TESTING SET CODE AFTER ACCOUNT UPDATE =========================");
+  console.log(
+    "\n==================== TESTING SET CODE AFTER ACCOUNT UPDATE ========================="
+  );
 
   await test.testSetCodeAfterAccountUpdate();
 }
