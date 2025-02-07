@@ -9,7 +9,14 @@ const apisWithBlock = [
   "istanbul_getValidators",
 ];
 
+const apisWithBlockHash = [
+  "istanbul_getDemotedValidatorsAtHash",
+  "istanbul_getValidatorsAtHash",
+];
+
 const apisWithComplex = ["kaia_getBlockWithConsensusInfoByNumber"];
+
+const apisWithComplexHash = ["kaia_getBlockWithConsensusInfoByHash"];
 
 const apisWithBlockRange = ["kaia_getBlockWithConsensusInfoByNumberRange"];
 
@@ -48,9 +55,58 @@ async function main() {
   }
 
   for (let i = startBlock; i < endBlock; i++) {
+    for (const api of apisWithBlockHash) {
+      const blockHash = (await v1Provider.getBlock(i)).hash;
+
+      const v1Result = await v1Provider.send(api, [blockHash]);
+      const v2Result = await v2Provider.send(api, [blockHash]);
+
+      if (typeof v1Result === "object") {
+        for (const [_, value] of Object.entries(v1Result)) {
+          if (!v2Result.includes(value)) {
+            console.log(`${api} at block ${i} is different`);
+          }
+        }
+        for (const [_, value] of Object.entries(v2Result)) {
+          if (!v1Result.includes(value)) {
+            console.log(`${api} at block ${i} is different`);
+          }
+        }
+      } else {
+        if (v1Result !== v2Result) {
+          console.log(`${api} at block ${i} is different`);
+        }
+      }
+    }
+  }
+
+  for (let i = startBlock; i < endBlock; i++) {
     for (const api of apisWithComplex) {
       const v1Result = await v1Provider.send(api, [i]);
       const v2Result = await v2Provider.send(api, [i]);
+
+      for (const key of Object.keys(v1Result)) {
+        if (key === "committee") {
+          const len = v2Result[key].length;
+          for (let j = 0; j < len; j++) {
+            if (!v1Result[key].includes(v2Result[key][j])) {
+              console.log(`${api} at block ${i} is different`);
+            }
+          }
+        } else if (key === "proposer") {
+          if (v1Result[key].toString() !== v2Result[key].toString()) {
+            console.log(`${api} at block ${i} is different`);
+          }
+        }
+      }
+    }
+  }
+
+  for (let i = startBlock; i < endBlock; i++) {
+    for (const api of apisWithComplexHash) {
+      const blockHash = (await v1Provider.getBlock(i)).hash;
+      const v1Result = await v1Provider.send(api, [blockHash]);
+      const v2Result = await v2Provider.send(api, [blockHash]);
 
       for (const key of Object.keys(v1Result)) {
         if (key === "committee") {
