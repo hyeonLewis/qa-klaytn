@@ -17,51 +17,22 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 pragma solidity ^0.8.18;
 
-abstract contract IRegistry {
-    /* ========== VARIABLES ========== */
-    /// The following variables are baked here because their storage layouts matter in protocol consensus
-    /// when inject initial states (pre-deployed system contracts, owner) of the Registry.
-    /// @dev Mapping of system contracts
-    mapping(string => Record[]) public records;
-
-    /// @dev Array of system contract names
-    string[] public names;
-
-    /// @dev Owner of contract
-    address internal _owner;
-
-    /* ========== TYPES ========== */
-    /// @dev Struct of system contracts
-    struct Record {
-        address addr;
-        uint256 activation;
-    }
-
-    /* ========== EVENTS ========== */
-    /// @dev Emitted when the contract owner is updated by `transferOwnership`.
-    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
-
-    /// @dev Emitted when a new system contract is registered.
-    event Registered(string name, address indexed addr, uint256 indexed activation);
-
+interface IRegistry {
     /* ========== MUTATORS ========== */
     /// @dev Registers a new system contract.
-    function register(string memory name, address addr, uint256 activation) external virtual;
+    function register(string memory name, address addr, uint256 activation) external;
 
     /// @dev Transfers ownership to newOwner.
-    function transferOwnership(address newOwner) external virtual;
+    function transferOwnership(address newOwner) external;
 
     /* ========== GETTERS ========== */
     /// @dev Returns an address for active system contracts registered as name if exists.
     /// It returns a zero address if there's no active system contract with name.
-    function getActiveAddr(string memory name) external view virtual returns (address);
-
-    /// @dev Returns all system contracts registered as name.
-    function getAllRecords(string memory name) external view virtual returns (Record[] memory);
+    function getActiveAddr(string memory name) external view returns (address);
 
     /// @dev Returns all names of registered system contracts.
-    function getAllNames() external view virtual returns (string[] memory);
+    function getAllNames() external view returns (string[] memory);
 
     /// @dev Returns owner of contract.
-    function owner() external view virtual returns (address);
+    function owner() external view returns (address);
 }

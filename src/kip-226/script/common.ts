@@ -3,9 +3,9 @@ import {
   CLMock__factory,
   CLRegistryMock__factory,
   CNMock__factory,
-  IRegistry__factory,
   WrappedKaiaMock__factory,
 } from "../../../typechain-types";
+import { IRegistry__factory } from "../../../typechain-types/factories/src/kip-226/contracts";
 import { ethers } from "ethers";
 import { getEnv } from "../../common/utils";
 
@@ -49,9 +49,12 @@ export async function setupCNs() {
     "0x6b4679e1a0AA81ffcab3E0B70044b3c0928b7f44",
   ];
   const cnLists: string[] = [];
-  const amounts: ethers.BigNumber[] = ["5000000", "10000000", "15000000", "20000000"].map((amount) =>
-    ethers.utils.parseEther(amount)
-  );
+  const amounts: ethers.BigNumber[] = [
+    "5000000",
+    "10000000",
+    "15000000",
+    "20000000",
+  ].map((amount) => ethers.utils.parseEther(amount));
 
   const pk = env["PRIVATE_KEY"];
   const deployer = new ethers.Wallet(pk, provider);
@@ -74,7 +77,11 @@ export async function setupCNs() {
   let tx = await addressBook.constructContract([deployer.address], 1);
   await tx.wait(1);
 
-  tx = await addressBook.mockRegisterCnStakingContracts(nodeIds, cnLists, rewards);
+  tx = await addressBook.mockRegisterCnStakingContracts(
+    nodeIds,
+    cnLists,
+    rewards
+  );
   await tx.wait(1);
 
   tx = await addressBook.updateKirContract(env["KIR_CONTRACT"], 1);
@@ -97,8 +104,8 @@ export async function setupCLs(clNodeIds: string[], pragueHF: number) {
     "0x7B056BaFBDdb86dE6090AFb572880d34451a46D0",
     "0x3F7DAbace014a602C25F610b411EC8875aE08002",
   ];
-  const clAmounts: ethers.BigNumber[] = ["5000000", "10000000", "15000000"].map((amount) =>
-    ethers.utils.parseEther(amount)
+  const clAmounts: ethers.BigNumber[] = ["5000000", "10000000", "15000000"].map(
+    (amount) => ethers.utils.parseEther(amount)
   );
   // 5M, 10M, 15M
   for (let i = 0; i < numCL; i++) {
@@ -123,8 +130,16 @@ export async function setupCLs(clNodeIds: string[], pragueHF: number) {
   const wrappedKaia = await new WrappedKaiaMock__factory(deployer).deploy();
 
   const registry = IRegistry__factory.connect(registryAddr, deployer);
-  const tx = await registry.register("CLRegistry", clRegistry.address, pragueHF);
-  const tx2 = await registry.register("WrappedKaia", wrappedKaia.address, pragueHF);
+  const tx = await registry.register(
+    "CLRegistry",
+    clRegistry.address,
+    pragueHF
+  );
+  const tx2 = await registry.register(
+    "WrappedKaia",
+    wrappedKaia.address,
+    pragueHF
+  );
   await tx.wait(1);
   await tx2.wait(1);
 
