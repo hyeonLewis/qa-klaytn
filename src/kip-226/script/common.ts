@@ -3,9 +3,11 @@ import {
   CLMock__factory,
   CLRegistryMock__factory,
   CNMock__factory,
-  WrappedKaiaMock__factory,
 } from "../../../typechain-types";
-import { IRegistry__factory } from "../../../typechain-types/factories/src/kip-226/contracts";
+import {
+  IRegistry__factory,
+  WrappedKaiaMock__factory,
+} from "../../../typechain-types/factories/src/kip-226/contracts";
 import { ethers } from "ethers";
 import { getEnv } from "../../common/utils";
 
@@ -19,6 +21,18 @@ export const provider = new ethers.providers.JsonRpcProvider(url);
 // Tricky function to get balance at a specific block number using provider.send
 export async function getBalance(address: string, blockNumber: number) {
   const balance = await provider.send("eth_getBalance", [address, blockNumber]);
+  return ethers.BigNumber.from(balance);
+}
+
+export async function getWrappedKaiaBalance(
+  wrappedKaia: string,
+  address: string,
+  blockNumber: number
+) {
+  const wkaia = WrappedKaiaMock__factory.connect(wrappedKaia, provider);
+  const balance = await wkaia.balanceOf(address, {
+    blockTag: blockNumber,
+  });
   return ethers.BigNumber.from(balance);
 }
 
@@ -99,21 +113,25 @@ export async function setupCLs(clNodeIds: string[], pragueHF: number) {
   const pk = env["PRIVATE_KEY"];
   const deployer = new ethers.Wallet(pk, provider);
   const clPoolLists: string[] = [];
-  const clStakingLists: string[] = [
-    "0x10FD8Bf375208E62077016d58329D2986eED45Ce",
-    "0x7B056BaFBDdb86dE6090AFb572880d34451a46D0",
-    "0x3F7DAbace014a602C25F610b411EC8875aE08002",
-  ];
   const clAmounts: ethers.BigNumber[] = ["5000000", "10000000", "15000000"].map(
     (amount) => ethers.utils.parseEther(amount)
   );
+  const wrappedKaia = await new WrappedKaiaMock__factory(deployer).deploy();
+  await wrappedKaia.deployed();
+
   // 5M, 10M, 15M
   for (let i = 0; i < numCL; i++) {
-    const cl = await new CLMock__factory(deployer).deploy({
+    const cl = await new CLMock__factory(deployer).deploy(wrappedKaia.address, {
       value: clAmounts[i],
     });
     clPoolLists.push(cl.address);
   }
+
+  console.log("WrappedKaia: ", wrappedKaia.address);
+  console.log(
+    "WrappedKaia balance: ",
+    await wrappedKaia.balanceOf(clPoolLists[0])
+  );
 
   const clRegistry = await new CLRegistryMock__factory(deployer).deploy();
   for (let i = 0; i < numCL; i++) {
@@ -123,11 +141,9 @@ export async function setupCLs(clNodeIds: string[], pragueHF: number) {
         nodeId: clNodeIds[i],
         gcId: gcId,
         clPool: clPoolLists[i],
-        clStaking: clStakingLists[i],
       },
     ]);
   }
-  const wrappedKaia = await new WrappedKaiaMock__factory(deployer).deploy();
 
   const registry = IRegistry__factory.connect(registryAddr, deployer);
   const tx = await registry.register(
@@ -143,7 +159,7 @@ export async function setupCLs(clNodeIds: string[], pragueHF: number) {
   await tx.wait(1);
   await tx2.wait(1);
 
-  return { clNodeIds, clPoolLists, clStakingLists, clAmounts };
+  return { clNodeIds, clPoolLists, clAmounts, wrappedKaia };
 }
 
 export async function deleteAllCLs() {
@@ -157,7 +173,9 @@ export async function deleteAllCLs() {
   const gcIds = await clRegistry.getAllGCIds();
 
   for (const gcId of gcIds) {
-    const tx = await clRegistry.removeCLPair(gcId);
+    const tx = await clRegistry.removeCLPair(gcId, {
+      gasLimit: 1000000,
+    });
     await tx.wait(1);
   }
 }

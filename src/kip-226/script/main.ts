@@ -1,5 +1,13 @@
 import { ethers } from "ethers";
-import { closeTo, deleteAllCLs, getBalance, provider, setupCLs, setupCNs } from "./common";
+import {
+  closeTo,
+  deleteAllCLs,
+  getBalance,
+  getWrappedKaiaBalance,
+  provider,
+  setupCLs,
+  setupCNs,
+} from "./common";
 import { getEnv, getHF } from "../../common/utils";
 import { assert } from "console";
 import { CLMock__factory, CNMock__factory } from "../../../typechain-types";
@@ -12,15 +20,19 @@ class StakingInfoChecker {
   private stakingReward = ethers.utils.parseEther("2.6112");
   private signer: ethers.Wallet;
   private pragueHF: number;
-  private cnInfos: { nodeIds: string[]; stakingContracts: string[]; rewards: string[] } = {
+  private wrappedKaia: string = "";
+  private cnInfos: {
+    nodeIds: string[];
+    stakingContracts: string[];
+    rewards: string[];
+  } = {
     nodeIds: [],
     stakingContracts: [],
     rewards: [],
   };
-  private clInfos: { clNodeIds: string[]; clPools: string[]; clRewards: string[] } = {
+  private clInfos: { clNodeIds: string[]; clPools: string[] } = {
     clNodeIds: [],
     clPools: [],
-    clRewards: [],
   };
 
   private cnStakingAmounts: string[] = [];
@@ -47,7 +59,6 @@ class StakingInfoChecker {
     console.log("--------------------------------");
     console.log("CL Node IDs:", this.clInfos.clNodeIds);
     console.log("CL Pools:", this.clInfos.clPools);
-    console.log("CL Stakings:", this.clInfos.clRewards);
     console.log("--------------------------------");
   }
 
@@ -58,20 +69,24 @@ class StakingInfoChecker {
       stakingContracts: cnLists.map((addr: string) => addr.toLowerCase()),
       rewards: rewards.map((addr: string) => addr.toLowerCase()),
     };
-    this.cnStakingAmounts = amounts.map((amount: ethers.BigNumber) => ethers.utils.formatEther(amount));
+    this.cnStakingAmounts = amounts.map((amount: ethers.BigNumber) =>
+      ethers.utils.formatEther(amount)
+    );
   }
 
   async setupCLs() {
-    const { clNodeIds, clPoolLists, clStakingLists, clAmounts } = await setupCLs(
+    const { clNodeIds, clPoolLists, clAmounts, wrappedKaia } = await setupCLs(
       [...this.cnInfos.nodeIds.slice(0, 2), this.randomAddr],
       this.pragueHF
     );
+    this.wrappedKaia = wrappedKaia.address;
     this.clInfos = {
       clNodeIds: clNodeIds.map((id: string) => id.toLowerCase()),
       clPools: clPoolLists.map((pool: string) => pool.toLowerCase()),
-      clRewards: clStakingLists.map((reward: string) => reward.toLowerCase()),
     };
-    this.clStakingAmounts = clAmounts.map((amount: ethers.BigNumber) => Number(ethers.utils.formatEther(amount)));
+    this.clStakingAmounts = clAmounts.map((amount: ethers.BigNumber) =>
+      Number(ethers.utils.formatEther(amount))
+    );
   }
 
   async deleteCLs() {
@@ -86,7 +101,10 @@ class StakingInfoChecker {
       this.checkAddressBookStakingInfo(stakingInfos);
       this.checkCLStakingInfo(stakingInfos);
     } else {
-      assert(stakingInfos.clStakingInfos === null, "CL staking info should be null before prague HF");
+      assert(
+        stakingInfos.clStakingInfos === null,
+        "CL staking info should be null before prague HF"
+      );
       this.checkAddressBookStakingInfo(stakingInfos);
     }
   }
@@ -106,7 +124,10 @@ class StakingInfoChecker {
     console.log("Checking reward distribution with ratio at block: ", bn);
 
     // Test with CN: 10M, CL: 5M
-    const clmock = CLMock__factory.connect(this.clInfos.clPools[1], this.signer);
+    const clmock = CLMock__factory.connect(
+      this.clInfos.clPools[1],
+      this.signer
+    );
     const tx = await clmock.takeOut(ethers.utils.parseEther("5000000"));
     const receipt = await tx.wait(1);
 
@@ -116,60 +137,125 @@ class StakingInfoChecker {
     const isProposer = proposerAddr === this.cnInfos.nodeIds[1];
     const myStaking = 15_000_000;
     const totalStaking = 60_000_000;
-    const blockReward = this.calculateReward(isProposer, myStaking, totalStaking);
+    const blockReward = this.calculateReward(
+      isProposer,
+      myStaking,
+      totalStaking
+    );
 
     const cnReward = String(rewards[this.cnInfos.rewards[1]]);
-    const clReward = String(rewards[this.clInfos.clRewards[1]]);
-    assert(closeTo(ethers.BigNumber.from(cnReward), blockReward.mul(2).div(3)), "CN reward mismatch");
-    assert(closeTo(ethers.BigNumber.from(clReward), blockReward.div(3)), "CL reward mismatch");
+    const clReward = String(rewards[this.clInfos.clPools[1]]);
+    assert(
+      closeTo(ethers.BigNumber.from(cnReward), blockReward.mul(2).div(3)),
+      "CN reward mismatch"
+    );
+    assert(
+      closeTo(ethers.BigNumber.from(clReward), blockReward.div(3)),
+      "CL reward mismatch"
+    );
 
-    let beforeBalance = await getBalance(this.cnInfos.rewards[1], receipt.blockNumber);
-    let afterBalance = await getBalance(this.cnInfos.rewards[1], receipt.blockNumber + 1);
-    assert(closeTo(afterBalance.sub(beforeBalance), blockReward.mul(2).div(3)), "CN reward balance mismatch");
+    let beforeBalance = await getBalance(
+      this.cnInfos.rewards[1],
+      receipt.blockNumber
+    );
+    let afterBalance = await getBalance(
+      this.cnInfos.rewards[1],
+      receipt.blockNumber + 1
+    );
+    assert(
+      closeTo(afterBalance.sub(beforeBalance), blockReward.mul(2).div(3)),
+      "CN reward balance mismatch"
+    );
 
-    beforeBalance = await getBalance(this.clInfos.clRewards[1], receipt.blockNumber);
-    afterBalance = await getBalance(this.clInfos.clRewards[1], receipt.blockNumber + 1);
-    assert(closeTo(afterBalance.sub(beforeBalance), blockReward.div(3)), "CL reward balance mismatch");
+    beforeBalance = await getBalance(
+      this.clInfos.clPools[1],
+      receipt.blockNumber
+    );
+    afterBalance = await getBalance(
+      this.clInfos.clPools[1],
+      receipt.blockNumber + 1
+    );
+    assert(
+      closeTo(afterBalance.sub(beforeBalance), blockReward.div(3)),
+      "CL reward balance mismatch"
+    );
 
-    (await clmock.deposit({ value: ethers.utils.parseEther("5000000") })).wait(1);
+    (await clmock.deposit({ value: ethers.utils.parseEther("5000000") })).wait(
+      1
+    );
   }
 
   async checkValidators(bn: number) {
     console.log("Checking validators at block: ", bn);
 
     const currValSet = await provider.send("kaia_getCommittee", [bn]);
-    assert(currValSet.includes(this.cnInfos.nodeIds[1]), "CN1 should be in the committee");
+    assert(
+      currValSet.includes(this.cnInfos.nodeIds[1]),
+      "CN1 should be in the committee"
+    );
 
-    const cn1Mock = CNMock__factory.connect(this.cnInfos.stakingContracts[1], this.signer);
+    const cn1Mock = CNMock__factory.connect(
+      this.cnInfos.stakingContracts[1],
+      this.signer
+    );
 
     // cn1Mock < minStake will demote cn1Mock
     let tx = await cn1Mock.takeOut(ethers.utils.parseEther("1000000")); // becomes 9M
     let receipt = await tx.wait(1);
 
-    let nextValSet = await provider.send("kaia_getCommittee", [receipt.blockNumber + 1]);
-    assert(nextValSet.includes(this.cnInfos.nodeIds[1]), "CN1 shouldn't be demoted yet");
+    let nextValSet = await provider.send("kaia_getCommittee", [
+      receipt.blockNumber + 1,
+    ]);
+    assert(
+      nextValSet.includes(this.cnInfos.nodeIds[1]),
+      "CN1 shouldn't be demoted yet"
+    );
 
     let rewards = await this.getRewardsFromAPI(receipt.blockNumber + 1);
-    assert(Number(rewards[this.cnInfos.rewards[1]]) > 0, "CN1 should have some reward");
+    assert(
+      Number(rewards[this.cnInfos.rewards[1]]) > 0,
+      "CN1 should have some reward"
+    );
 
-    tx = await cn1Mock.takeOut(ethers.utils.parseEther("5000000")); // becomes 4M
+    tx = await cn1Mock.takeOut(ethers.utils.parseEther("5000000"), {
+      gasLimit: 1000000,
+    }); // becomes 4M
     receipt = await tx.wait(1);
 
-    nextValSet = await provider.send("kaia_getCommittee", [receipt.blockNumber + 1]);
-    assert(!nextValSet.includes(this.cnInfos.nodeIds[1]), "CN1 should be demoted");
+    nextValSet = await provider.send("kaia_getCommittee", [
+      receipt.blockNumber + 1,
+    ]);
+    assert(
+      !nextValSet.includes(this.cnInfos.nodeIds[1]),
+      "CN1 should be demoted"
+    );
 
     rewards = await this.getRewardsFromAPI(receipt.blockNumber + 1);
-    assert(rewards[this.cnInfos.rewards[1]] === undefined, "CN1 should not have any reward");
+    assert(
+      rewards[this.cnInfos.rewards[1]] === undefined,
+      "CN1 should not have any reward"
+    );
 
     // cn1Mock > minStake will promote cn1Mock
-    tx = await cn1Mock.deposit({ value: ethers.utils.parseEther("6000000") }); // becomes 10M
+    tx = await cn1Mock.deposit({
+      gasLimit: 1000000,
+      value: ethers.utils.parseEther("6000000"),
+    }); // becomes 10M
     receipt = await tx.wait(1);
 
-    nextValSet = await provider.send("kaia_getCommittee", [receipt.blockNumber + 1]);
-    assert(nextValSet.includes(this.cnInfos.nodeIds[1]), "CN1 should be promoted");
+    nextValSet = await provider.send("kaia_getCommittee", [
+      receipt.blockNumber + 1,
+    ]);
+    assert(
+      nextValSet.includes(this.cnInfos.nodeIds[1]),
+      "CN1 should be promoted"
+    );
 
     rewards = await this.getRewardsFromAPI(receipt.blockNumber + 1);
-    assert(Number(rewards[this.cnInfos.rewards[1]]) > 0, "CN1 should have some reward");
+    assert(
+      Number(rewards[this.cnInfos.rewards[1]]) > 0,
+      "CN1 should have some reward"
+    );
   }
 
   async checkValidatorsWithTxFee(bn: number) {
@@ -187,62 +273,119 @@ class StakingInfoChecker {
     const rewardsFromAPI = await this.getRewardsFromAPI(receipt.blockNumber);
     const { cnIdx, hasCL, clIdx } = this.getIdx(proposerAddr);
     const cnRewardAddr = this.cnInfos.rewards[cnIdx];
-    const blockReward = await this.calculateBlockReward(receipt, proposerAddr, receipt.blockNumber);
+    const blockReward = await this.calculateBlockReward(
+      receipt,
+      proposerAddr,
+      receipt.blockNumber
+    );
     if (hasCL) {
-      const clRewardAddr = this.clInfos.clRewards[clIdx];
+      const clRewardAddr = this.clInfos.clPools[clIdx];
       const cnReward = String(rewardsFromAPI[cnRewardAddr]);
       const clReward = String(rewardsFromAPI[clRewardAddr]);
 
-      assert(closeTo(ethers.BigNumber.from(cnReward), blockReward.div(2)), "CN reward mismatch");
-      assert(closeTo(ethers.BigNumber.from(clReward), blockReward.div(2)), "CL reward mismatch");
+      assert(
+        closeTo(ethers.BigNumber.from(cnReward), blockReward.div(2)),
+        "CN reward mismatch"
+      );
+      assert(
+        closeTo(ethers.BigNumber.from(clReward), blockReward.div(2)),
+        "CL reward mismatch"
+      );
 
-      let beforeBalance = await getBalance(cnRewardAddr, receipt.blockNumber - 1);
+      let beforeBalance = await getBalance(
+        cnRewardAddr,
+        receipt.blockNumber - 1
+      );
       let afterBalance = await getBalance(cnRewardAddr, receipt.blockNumber);
-      assert(closeTo(afterBalance.sub(beforeBalance), blockReward.div(2)), "CN reward balance mismatch");
+      assert(
+        closeTo(afterBalance.sub(beforeBalance), blockReward.div(2)),
+        "CN reward balance mismatch"
+      );
 
       beforeBalance = await getBalance(clRewardAddr, receipt.blockNumber - 1);
       afterBalance = await getBalance(clRewardAddr, receipt.blockNumber);
-      assert(closeTo(afterBalance.sub(beforeBalance), blockReward.div(2)), "CL reward balance mismatch");
+      assert(
+        closeTo(afterBalance.sub(beforeBalance), blockReward.div(2)),
+        "CL reward balance mismatch"
+      );
     } else {
       assert(
-        closeTo(ethers.BigNumber.from(String(rewardsFromAPI[cnRewardAddr])), blockReward),
+        closeTo(
+          ethers.BigNumber.from(String(rewardsFromAPI[cnRewardAddr])),
+          blockReward
+        ),
         "Proposer reward mismatch"
       );
-      const beforeBalance = await getBalance(cnRewardAddr, receipt.blockNumber - 1);
+      const beforeBalance = await getBalance(
+        cnRewardAddr,
+        receipt.blockNumber - 1
+      );
       const afterBalance = await getBalance(cnRewardAddr, receipt.blockNumber);
-      assert(closeTo(afterBalance.sub(beforeBalance), blockReward), "Proposer reward balance mismatch");
+      assert(
+        closeTo(afterBalance.sub(beforeBalance), blockReward),
+        "Proposer reward balance mismatch"
+      );
     }
   }
 
   private checkCLStakingInfo(stakingInfos: any) {
     const clInfosFromAPI = stakingInfos.clStakingInfos;
-    assert(clInfosFromAPI.length === this.clInfos.clNodeIds.length, "CL Node IDs length mismatch");
-    assert(clInfosFromAPI.length === this.clInfos.clPools.length, "CL Pools length mismatch");
-    assert(clInfosFromAPI.length === this.clInfos.clRewards.length, "CL Rewards length mismatch");
-    assert(clInfosFromAPI.length === this.clStakingAmounts.length, "CL Stakings length mismatch");
+    assert(
+      clInfosFromAPI.length === this.clInfos.clNodeIds.length,
+      "CL Node IDs length mismatch"
+    );
+    assert(
+      clInfosFromAPI.length === this.clInfos.clPools.length,
+      "CL Pools length mismatch"
+    );
+    assert(
+      clInfosFromAPI.length === this.clStakingAmounts.length,
+      "CL Stakings length mismatch"
+    );
 
     for (let i = 0; i < clInfosFromAPI.length; i++) {
       const clInfo = clInfosFromAPI[i];
-      assert(this.clInfos.clNodeIds.includes(clInfo.clNodeId), "CL Node ID mismatch");
-      assert(this.clInfos.clPools.includes(clInfo.clPoolAddr), "CL Pool mismatch");
-      assert(this.clInfos.clRewards.includes(clInfo.clRewardAddr), "CL Reward mismatch");
-      assert(this.clStakingAmounts.includes(clInfo.clStakingAmount), "CL Staking mismatch");
+      assert(
+        this.clInfos.clNodeIds.includes(clInfo.clNodeId),
+        "CL Node ID mismatch"
+      );
+      assert(
+        this.clInfos.clPools.includes(clInfo.clPoolAddr),
+        "CL Pool mismatch"
+      );
+      assert(
+        this.clStakingAmounts.includes(clInfo.clStakingAmount),
+        "CL Staking mismatch"
+      );
     }
   }
 
   private checkAddressBookStakingInfo(stakingInfos: any) {
     const nodeIdsFromAPI = stakingInfos.councilNodeAddrs;
-    const stakingContractsFromAPI = stakingInfos.councilStakingAddrs.map((addr: string) => addr.toLowerCase());
-    const rewardsFromAPI = stakingInfos.councilRewardAddrs.map((addr: string) => addr.toLowerCase());
+    const stakingContractsFromAPI = stakingInfos.councilStakingAddrs.map(
+      (addr: string) => addr.toLowerCase()
+    );
+    const rewardsFromAPI = stakingInfos.councilRewardAddrs.map((addr: string) =>
+      addr.toLowerCase()
+    );
     const stakingAmountsFromAPI = stakingInfos.councilStakingAmounts;
 
-    assert(nodeIdsFromAPI.length === this.cnInfos.nodeIds.length, "Node IDs length mismatch");
+    assert(
+      nodeIdsFromAPI.length === this.cnInfos.nodeIds.length,
+      "Node IDs length mismatch"
+    );
     assert(
       stakingContractsFromAPI.length === this.cnInfos.stakingContracts.length,
       "Staking contracts length mismatch"
     );
-    assert(rewardsFromAPI.length === this.cnInfos.rewards.length, "Rewards length mismatch");
-    assert(stakingAmountsFromAPI.length === this.cnStakingAmounts.length, "Staking amounts length mismatch");
+    assert(
+      rewardsFromAPI.length === this.cnInfos.rewards.length,
+      "Rewards length mismatch"
+    );
+    assert(
+      stakingAmountsFromAPI.length === this.cnStakingAmounts.length,
+      "Staking amounts length mismatch"
+    );
 
     for (let i = 0; i < this.cnInfos.nodeIds.length; i++) {
       const nodeId = this.cnInfos.nodeIds[i];
@@ -251,13 +394,23 @@ class StakingInfoChecker {
       const stakingAmount = this.cnStakingAmounts[i];
 
       assert(nodeIdsFromAPI.includes(nodeId), "Node ID mismatch");
-      assert(stakingContractsFromAPI.includes(stakingContract), "Staking contract mismatch");
+      assert(
+        stakingContractsFromAPI.includes(stakingContract),
+        "Staking contract mismatch"
+      );
       assert(rewardsFromAPI.includes(reward), "Reward mismatch");
-      assert(stakingAmountsFromAPI.includes(Number(stakingAmount)), "Staking amount mismatch");
+      assert(
+        stakingAmountsFromAPI.includes(Number(stakingAmount)),
+        "Staking amount mismatch"
+      );
     }
   }
 
-  private async checkCLRewardDistribution(rewards: any, proposerAddr: string, bn: number) {
+  private async checkCLRewardDistribution(
+    rewards: any,
+    proposerAddr: string,
+    bn: number
+  ) {
     const rewardsFromAPI = rewards.rewards;
     for (let i = 0; i < this.cnInfos.nodeIds.length; i++) {
       const nodeId = this.cnInfos.nodeIds[i];
@@ -265,43 +418,72 @@ class StakingInfoChecker {
       const isProposer = nodeId === proposerAddr;
       const cnRewardAddr = this.cnInfos.rewards[cnIdx];
       const myStaking = hasCL
-        ? (await this.getCNStakingAmount(bn - 1, this.cnInfos.stakingContracts[i])) +
+        ? (await this.getCNStakingAmount(
+            bn - 1,
+            this.cnInfos.stakingContracts[i]
+          )) +
           (await this.getCLStakingAmount(bn - 1, this.clInfos.clPools[clIdx]))
-        : await this.getCNStakingAmount(bn - 1, this.cnInfos.stakingContracts[i]);
+        : await this.getCNStakingAmount(
+            bn - 1,
+            this.cnInfos.stakingContracts[i]
+          );
 
       const calculatedReward = this.calculateReward(
         isProposer,
         myStaking,
-        (await this.getAllCNStakingAmounts(bn - 1)) + (await this.getAllCLStakingAmounts(bn - 1))
+        (await this.getAllCNStakingAmounts(bn - 1)) +
+          (await this.getAllCLStakingAmounts(bn - 1))
       );
 
       if (hasCL) {
-        const clRewardAddr = this.clInfos.clRewards[clIdx];
+        const clRewardAddr = this.clInfos.clPools[clIdx];
         const cnReward = String(rewardsFromAPI[cnRewardAddr]);
         const clReward = String(rewardsFromAPI[clRewardAddr]);
 
-        assert(closeTo(ethers.BigNumber.from(cnReward), calculatedReward.div(2)), "CN reward mismatch");
-        assert(closeTo(ethers.BigNumber.from(clReward), calculatedReward.div(2)), "CL reward mismatch");
+        assert(
+          closeTo(ethers.BigNumber.from(cnReward), calculatedReward.div(2)),
+          "CN reward mismatch"
+        );
+        assert(
+          closeTo(ethers.BigNumber.from(clReward), calculatedReward.div(2)),
+          "CL reward mismatch"
+        );
 
         let beforeBalance = await getBalance(cnRewardAddr, bn - 1);
         let afterBalance = await getBalance(cnRewardAddr, bn);
-        assert(closeTo(afterBalance.sub(beforeBalance), calculatedReward.div(2)), "CN reward balance mismatch");
+        assert(
+          closeTo(afterBalance.sub(beforeBalance), calculatedReward.div(2)),
+          "CN reward balance mismatch"
+        );
 
         beforeBalance = await getBalance(clRewardAddr, bn - 1);
         afterBalance = await getBalance(clRewardAddr, bn);
-        assert(closeTo(afterBalance.sub(beforeBalance), calculatedReward.div(2)), "CL reward balance mismatch");
+        assert(
+          closeTo(afterBalance.sub(beforeBalance), calculatedReward.div(2)),
+          "CL reward balance mismatch"
+        );
       } else {
         const cnReward = String(rewardsFromAPI[cnRewardAddr]);
-        assert(closeTo(ethers.BigNumber.from(cnReward), calculatedReward), "CN reward mismatch");
+        assert(
+          closeTo(ethers.BigNumber.from(cnReward), calculatedReward),
+          "CN reward mismatch"
+        );
 
         const beforeBalance = await getBalance(cnRewardAddr, bn - 1);
         const afterBalance = await getBalance(cnRewardAddr, bn);
-        assert(closeTo(afterBalance.sub(beforeBalance), calculatedReward), "CN reward balance mismatch");
+        assert(
+          closeTo(afterBalance.sub(beforeBalance), calculatedReward),
+          "CN reward balance mismatch"
+        );
       }
     }
   }
 
-  private async checkAddressBookRewardDistribution(rewards: any, proposerAddr: string, bn: number) {
+  private async checkAddressBookRewardDistribution(
+    rewards: any,
+    proposerAddr: string,
+    bn: number
+  ) {
     const rewardsFromAPI = rewards.rewards;
 
     for (let i = 1; i < this.cnInfos.nodeIds.length; i++) {
@@ -314,17 +496,29 @@ class StakingInfoChecker {
         await this.getAllCNStakingAmounts(bn - 1)
       );
 
-      assert(closeTo(ethers.BigNumber.from(reward), calculatedReward), "Reward mismatch");
+      assert(
+        closeTo(ethers.BigNumber.from(reward), calculatedReward),
+        "Reward mismatch"
+      );
 
       const beforeBalance = await getBalance(rewardAddr, bn - 1);
       const afterBalance = await getBalance(rewardAddr, bn);
-      assert(closeTo(afterBalance.sub(beforeBalance), calculatedReward), "Reward balance mismatch");
+      assert(
+        closeTo(afterBalance.sub(beforeBalance), calculatedReward),
+        "Reward balance mismatch"
+      );
     }
   }
 
-  private calculateReward(isProposer: boolean, mystaking: number, totalStaking: number) {
+  private calculateReward(
+    isProposer: boolean,
+    mystaking: number,
+    totalStaking: number
+  ) {
     const totalExcess = totalStaking - 20_000_000;
-    let myReward = this.stakingReward.mul(mystaking - 5_000_000).div(totalExcess);
+    let myReward = this.stakingReward
+      .mul(mystaking - 5_000_000)
+      .div(totalExcess);
     if (isProposer) {
       myReward = myReward.add(this.proposerReward);
     }
@@ -337,7 +531,11 @@ class StakingInfoChecker {
   }
 
   private async getCLStakingAmount(bn: number, clPool: string) {
-    const stakingAmount = await getBalance(clPool, bn);
+    const stakingAmount = await getWrappedKaiaBalance(
+      this.wrappedKaia,
+      clPool,
+      bn
+    );
     return Number(ethers.utils.formatEther(stakingAmount));
   }
 
@@ -360,16 +558,30 @@ class StakingInfoChecker {
     return amount;
   }
 
-  private async calculateBlockReward(receipt: any, proposerAddr: string, bn: number) {
-    const txFee = ethers.BigNumber.from(String(receipt.effectiveGasPrice * receipt.gasUsed));
+  private async calculateBlockReward(
+    receipt: any,
+    proposerAddr: string,
+    bn: number
+  ) {
+    const txFee = ethers.BigNumber.from(
+      String(receipt.effectiveGasPrice * receipt.gasUsed)
+    );
     const proposerFee = txFee.div(2).sub(this.proposerReward);
 
     const { cnIdx, hasCL, clIdx } = this.getIdx(proposerAddr);
     const myStaking = hasCL
-      ? (await this.getCNStakingAmount(bn - 1, this.cnInfos.stakingContracts[cnIdx])) +
+      ? (await this.getCNStakingAmount(
+          bn - 1,
+          this.cnInfos.stakingContracts[cnIdx]
+        )) +
         (await this.getCLStakingAmount(bn - 1, this.clInfos.clPools[clIdx]))
-      : await this.getCNStakingAmount(bn - 1, this.cnInfos.stakingContracts[cnIdx]);
-    const totalStaking = (await this.getAllCNStakingAmounts(bn - 1)) + (await this.getAllCLStakingAmounts(bn - 1));
+      : await this.getCNStakingAmount(
+          bn - 1,
+          this.cnInfos.stakingContracts[cnIdx]
+        );
+    const totalStaking =
+      (await this.getAllCNStakingAmounts(bn - 1)) +
+      (await this.getAllCLStakingAmounts(bn - 1));
     const baseReward = this.calculateReward(true, myStaking, totalStaking);
     return baseReward.add(proposerFee);
   }
@@ -387,7 +599,9 @@ class StakingInfoChecker {
   }
 
   private async getProposerAddr(bn: number) {
-    return await provider.getBlock(bn).then((block) => block.miner.toLowerCase());
+    return await provider
+      .getBlock(bn)
+      .then((block) => block.miner.toLowerCase());
   }
 }
 
