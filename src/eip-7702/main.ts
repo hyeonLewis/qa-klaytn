@@ -481,7 +481,7 @@ class TestEIP7702 {
   private async increment(from?: Wallet) {
     if (from) {
       const tx = await this.eoaWithCodeInstance.connect(from).increment();
-      console.log(await tx.wait(1));
+      await tx.wait(1);
     } else {
       const tx = await this.eoaWithCodeInstance.increment();
       await tx.wait(1);

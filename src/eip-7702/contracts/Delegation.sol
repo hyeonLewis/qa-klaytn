@@ -69,5 +69,9 @@ contract Delegation {
 
             codehash := extcodehash(_addr)
         }
+
+        require(size == _addr.code.length, "Code length mismatch");
+        require(codehash == _addr.codehash, "Codehash mismatch");
+        require(keccak256(code) == keccak256(_addr.code), "Code mismatch");
     }
 }
