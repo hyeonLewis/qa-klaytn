@@ -1,13 +1,59 @@
 import { ethers } from "ethers";
 import { TxType, AccountKeyType } from "@kaiachain/js-ext-core";
 import { Wallet, JsonRpcProvider } from "@kaiachain/ethers-ext";
-import { computePublicKey } from "ethers/lib/utils";
 
 export const url = "http://127.0.0.1:8551";
 export const provider = new JsonRpcProvider(url);
 export const chainId = 1000;
 export const gasLimit = 1_000_000;
 export const gasPrice = 30_000_000_000;
+
+export async function genValueTransferTx(
+  from: string,
+  to: string,
+  value: string,
+  sender: Wallet
+) {
+  const nonce = await provider.getTransactionCount(from);
+
+  const tx = {
+    from: from,
+    to: to,
+    chainId: chainId,
+    gasLimit: gasLimit,
+    gasPrice: gasPrice,
+    value: value,
+    type: TxType.ValueTransfer,
+    nonce: nonce,
+  };
+
+  const populatedTx = await sender.populateTransaction(tx);
+  return await sender.signTransaction(populatedTx);
+}
+
+export async function genSmartContractExecutionTx(
+  from: string,
+  to: string,
+  input: string,
+  sender: Wallet
+) {
+  const nonce = await provider.getTransactionCount(from);
+
+  const tx = {
+    from: from,
+    to: to,
+    chainId: chainId,
+    gasLimit: gasLimit,
+    gasPrice: gasPrice,
+    input: input,
+    value: 0,
+    type: TxType.SmartContractExecution,
+    nonce: nonce,
+  };
+
+  const populatedTx = await sender.populateTransaction(tx);
+  return await sender.signTransaction(populatedTx);
+}
 
 export async function genValueTransferRelatedTx(
   from: string,
@@ -46,7 +92,10 @@ export async function genValueTransferRelatedTx(
     ) {
       feeRatio = 30;
       isFeeDelegated = true;
-    } else if (txtype === TxType.FeeDelegatedValueTransfer || txtype === TxType.FeeDelegatedValueTransferMemo) {
+    } else if (
+      txtype === TxType.FeeDelegatedValueTransfer ||
+      txtype === TxType.FeeDelegatedValueTransferMemo
+    ) {
       isFeeDelegated = true;
     }
     if (
@@ -85,7 +134,11 @@ export async function genAccountUpdateRelatedTx(
   wallets: Wallet[],
   feePayer: Wallet
 ) {
-  const types = [TxType.AccountUpdate, TxType.FeeDelegatedAccountUpdate, TxType.FeeDelegatedAccountUpdateWithRatio];
+  const types = [
+    TxType.AccountUpdate,
+    TxType.FeeDelegatedAccountUpdate,
+    TxType.FeeDelegatedAccountUpdateWithRatio,
+  ];
   let nonce = await provider.getTransactionCount(from);
   const txs = [];
 

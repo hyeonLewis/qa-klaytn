@@ -9,7 +9,9 @@ import { computePublicKey } from "ethers/lib/utils";
 import {
   genAccountUpdateRelatedTx,
   genSmartContractExecutionRelatedTx,
+  genSmartContractExecutionTx,
   genValueTransferRelatedTx,
+  genValueTransferTx,
 } from "./genTx";
 
 export const url = "http://127.0.0.1:8551";
@@ -76,11 +78,13 @@ class TestEIP7702 {
     await this.waitTime(2000);
 
     console.log("delegation deployed at", this.delegation.address);
+    console.log("eoaWithCode", this.eoaWithCode.address);
+    console.log("eoaWithoutCode", this.eoaWithoutCode.address);
 
     // This is the pre-calculated tx data for SetCodeTx.
     // It'll set the code ofr delegation contract to eoaWithCode.
     const tx = await provider.send("kaia_sendRawTransaction", [
-      "0x7804f8ca8203e88014850ba43b74008307a12094aa3d17d2a89d79c8d7e3e11406c49d21d468d7f28080c0f85ef85c8203e89453f0899cb710f92163b6824faf9149550a803caa0101a07cd70f304d303750c55105708ddb644f81cb5c6d083c88fe83725b92a80a99b1a00ec3e1ca712580c012af3f2a150f7a5ee9c82864cff54b40240b0c9079db34ad80a012387725d6264cbedaaf3fb5fee6172e69262e97058fb3aef6506e479b8c40f8a033bc670442981c9e604df4447d7c8715ded4b31dc77ea71f69cce1091063c30f",
+      "0x7804f8ca8203e88014850ba43b74008307a12094aa3d17d2a89d79c8d7e3e11406c49d21d468d7f28080c0f85ef85c8203e894f772235464347a44a2f1e955b9b3fbd956bb63f70180a0c7203d9c986b18264c713a4cbf0d56f2db08b901776517224e22b9a478455723a06a428d5000823b84e4aeb32b6ae67b77dd2f41cc36dcdc4e77728faba7e6dbe101a0f987d87489039c640061bb54ee5a19211e0a44c5f7285b1b3702a4e8bcba69baa05716034f43c85b3151f192c6e9ce1c49ab6e33f9207506423b1d9e70a4f1df22",
     ]);
 
     await this.waitTime(2000);
@@ -117,7 +121,7 @@ class TestEIP7702 {
 
     // Reset the code of delegation contract to zero address.
     await provider.send("kaia_sendRawTransaction", [
-      "0x7804f8ca8203e80214850ba43b74008307a12094aa3d17d2a89d79c8d7e3e11406c49d21d468d7f28080c0f85ef85c8203e89400000000000000000000000000000000000000000380a040c039cf9b3b7bafab4d6c89f6fdfdb13aaac0c87b397d0653acd2c2eebc778da026587fe847d141eb62d2caf64cec8951989a3a23b2bdba24ba651963ecb2a6c901a09ed01013dc7fef57cfd3e99fb52829c084612f5aec22890553653d025e9fa29ea038aa9687a6c7c438cb9fd79345533be45b7ab148a1ac1fe41e9a24d3e10303c7",
+      "0x7804f8ca8203e80b14850ba43b74008307a12094aa3d17d2a89d79c8d7e3e11406c49d21d468d7f28080c0f85ef85c8203e89400000000000000000000000000000000000000000c01a08ff4b3e8a1de3f92a8d5a1fa24bbab19d428315b8df30765c16737f1ca0a1284a04dea959aa2be254af7ac29bdc10052da370e666ed0a4b6e192386d8b05f0821980a09ec5cece494c6edf34e2a7b98c743db2a17bbf08eec531d67a37030ffecfbd10a079b87dcfbb04c2277062b151a7a23a9eac41d3e5f6ecf259015a771959ffa6df",
     ]);
 
     await this.waitTime(2000);
@@ -183,7 +187,7 @@ class TestEIP7702 {
   }
 
   async testExecution() {
-    console.log("Checking execution of eoaWithCode");
+    console.log("1. Checking execution of eoaWithCode");
 
     await this.testIncrement();
     await this.testCallIncrement();
@@ -192,6 +196,20 @@ class TestEIP7702 {
     await this.testDelegatecallIncrementFromEoaWithCode();
     await this.testCallcodeIncrement();
     await this.testCallcodeIncrementFromEoaWithCode();
+
+    console.log("2. Checking execution of eoaWithCode from eoaWithCode");
+
+    // from eoaWithCode to eoaWithCode
+    await this.testIncrement(this.eoaWithCode);
+    await this.testCallIncrement(this.eoaWithCode);
+    await this.testCallIncrementFromEoaWithCode(this.eoaWithCode);
+    await this.testDelegatecallIncrement(this.eoaWithCode);
+    await this.testDelegatecallIncrementFromEoaWithCode(this.eoaWithCode);
+    await this.testCallcodeIncrement(this.eoaWithCode);
+    await this.testCallcodeIncrementFromEoaWithCode(this.eoaWithCode);
+
+    console.log("3. Checking kaia tx types");
+    await this.testKaiaTypeFromEoaWithCode();
   }
 
   async testKaiaTypeTxs(isSetCode = true) {
@@ -206,7 +224,7 @@ class TestEIP7702 {
     // Since the account key has been updated to public type, the authorizationList will be ignored.
     try {
       await provider.send("kaia_sendRawTransaction", [
-        "0x7804f8ca8203e80714850ba43b74008307a12094aa3d17d2a89d79c8d7e3e11406c49d21d468d7f28080c0f85ef85c8203e894e9f00c100f34decaf94297132ab80aee2e4c5b660801a0a3d98e7788294bee1f7acd39a8c903e9c336f5323fd74e92e02ddfdf49319ac9a0781448d69ae20ebf5a6b47666483ee5d5c1bd0b2ebafbeb72cac1aa2c4756c2280a0b2f6a1c80319b8ebe97d6ce17a061a2739922e81b0b67bb7fb2c9fe3ece4fdeaa0178feb89001bce41b22d570296aa537da95ac015c9a8406095750cc67f618b7e",
+        "0x7804f8ca8203e80d14850ba43b74008307a12094aa3d17d2a89d79c8d7e3e11406c49d21d468d7f28080c0f85ef85c8203e894f772235464347a44a2f1e955b9b3fbd956bb63f70e01a0693cb67ac7b5e6392613670f52ff77ca23cc58fa6457adbeb70fbd7f1a7ee8d7a006914d12d32e9ce9b5746db5589ce8166e9d9f8317a97d017229c5d43856d40901a02fa154b2f23d5ca2f3fe4a54f38b52142c95d0f2c69d452e97d9de1c292fee10a05023fc21adcb3060d57f5cd48c5ae4eb18428c921e50994d9e509714137cfabb",
       ]);
       assert(false, "Transaction should be rejected");
     } catch (e: any) {
@@ -220,6 +238,50 @@ class TestEIP7702 {
   }
 
   /***************** PRIVATE FUNCTIONS *****************/
+
+  private async testKaiaTypeFromEoaWithCode() {
+    const tx = await genValueTransferTx(
+      this.eoaWithCode.address,
+      this.eoaWithoutCode.address,
+      "1",
+      this.eoaWithCode
+    );
+
+    try {
+      const beforeBalance = await provider.getBalance(
+        this.eoaWithoutCode.address
+      );
+      const txHash = await provider.send("kaia_sendRawTransaction", [tx]);
+      await this.waitTime(2000);
+      const receipt = await provider.getTransactionReceipt(txHash);
+      assert(receipt.status === 1, "Transaction should be successful");
+      const afterBalance = await provider.getBalance(
+        this.eoaWithoutCode.address
+      );
+      assert(afterBalance.sub(beforeBalance).eq(1), "Balance mismatch");
+    } catch (e: any) {
+      assert(false, "Transaction should be successful");
+    }
+
+    const tx2 = await genSmartContractExecutionTx(
+      this.eoaWithCode.address,
+      this.eoaWithCode.address,
+      "0xd09de08a",
+      this.eoaWithCode
+    );
+
+    try {
+      const before = await this.getCountOfEoaWithCode();
+      const txHash = await provider.send("kaia_sendRawTransaction", [tx2]);
+      await this.waitTime(2000);
+      const receipt = await provider.getTransactionReceipt(txHash);
+      assert(receipt.status === 1, "Transaction should be successful");
+      const after = await this.getCountOfEoaWithCode();
+      assert(after.sub(before).eq(1), "Count mismatch");
+    } catch (e: any) {
+      assert(false, "Transaction should be successful");
+    }
+  }
 
   private async testToMustBeEoaWithoutCode(isSetCode = true) {
     console.log(
@@ -353,114 +415,159 @@ class TestEIP7702 {
     }
   }
 
-  private async testIncrement() {
+  private async testIncrement(from?: Wallet) {
     console.log("Checking increment of eoaWithCode");
 
     const before = await this.getCountOfEoaWithCode();
-    await this.increment();
+    await this.increment(from);
     const after = await this.getCountOfEoaWithCode();
     assert(after.sub(before).eq(1), "Count mismatch");
   }
 
-  private async testCallIncrement() {
+  private async testCallIncrement(from?: Wallet) {
     console.log("Checking callIncrement of eoaWithCode");
 
     const before = await this.getCountOfEoaWithCode();
-    await this.callIncrement();
+    await this.callIncrement(from);
     const after = await this.getCountOfEoaWithCode();
     assert(after.sub(before).eq(1), "Count mismatch");
   }
 
-  private async testCallIncrementFromEoaWithCode() {
+  private async testCallIncrementFromEoaWithCode(from?: Wallet) {
     console.log("Checking callIncrementFromEoaWithCode of eoaWithCode");
 
     const before = await this.delegation.count();
-    await this.callIncrementFromEoaWithCode();
+    await this.callIncrementFromEoaWithCode(from);
     const after = await this.delegation.count();
     assert(after.sub(before).eq(1), "Count mismatch");
   }
 
-  private async testDelegatecallIncrement() {
+  private async testDelegatecallIncrement(from?: Wallet) {
     console.log("Checking delegatecallIncrement of eoaWithCode");
 
     const before = await this.delegation.count();
-    await this.delegatecallIncrement();
+    await this.delegatecallIncrement(from);
     const after = await this.delegation.count();
     assert(after.sub(before).eq(1), "Count mismatch");
   }
 
-  private async testDelegatecallIncrementFromEoaWithCode() {
+  private async testDelegatecallIncrementFromEoaWithCode(from?: Wallet) {
     console.log("Checking delegatecallIncrementFromEoaWithCode of eoaWithCode");
 
     const before = await this.getCountOfEoaWithCode();
-    await this.delegatecallIncrementFromEoaWithCode();
+    await this.delegatecallIncrementFromEoaWithCode(from);
     const after = await this.getCountOfEoaWithCode();
     assert(after.sub(before).eq(1), "Count mismatch");
   }
 
-  private async testCallcodeIncrement() {
+  private async testCallcodeIncrement(from?: Wallet) {
     console.log("Checking callcodeIncrement of eoaWithCode");
 
     const before = await this.delegation.count();
-    await this.callcodeIncrement();
+    await this.callcodeIncrement(from);
     const after = await this.delegation.count();
     assert(after.sub(before).eq(1), "Count mismatch");
   }
 
-  private async testCallcodeIncrementFromEoaWithCode() {
+  private async testCallcodeIncrementFromEoaWithCode(from?: Wallet) {
     console.log("Checking callcodeIncrementFromEoaWithCode of eoaWithCode");
 
     const before = await this.getCountOfEoaWithCode();
-    await this.callcodeIncrementFromEoaWithCode();
+    await this.callcodeIncrementFromEoaWithCode(from);
     const after = await this.getCountOfEoaWithCode();
     assert(after.sub(before).eq(1), "Count mismatch");
   }
 
-  private async increment() {
-    const tx = await this.eoaWithCodeInstance.increment();
-    await tx.wait(1);
+  private async increment(from?: Wallet) {
+    if (from) {
+      const tx = await this.eoaWithCodeInstance.connect(from).increment();
+      console.log(await tx.wait(1));
+    } else {
+      const tx = await this.eoaWithCodeInstance.increment();
+      await tx.wait(1);
+    }
   }
 
-  private async callIncrement() {
-    const tx = await this.delegation.callIncrement(
-      this.eoaWithCodeInstance.address
-    );
-    await tx.wait(1);
+  private async callIncrement(from?: Wallet) {
+    if (from) {
+      const tx = await this.delegation
+        .connect(from)
+        .callIncrement(this.eoaWithCodeInstance.address);
+      await tx.wait(1);
+    } else {
+      const tx = await this.delegation.callIncrement(
+        this.eoaWithCodeInstance.address
+      );
+      await tx.wait(1);
+    }
   }
 
-  private async callIncrementFromEoaWithCode() {
-    const tx = await this.eoaWithCodeInstance.callIncrement(
-      this.delegation.address
-    );
-    await tx.wait(1);
+  private async callIncrementFromEoaWithCode(from?: Wallet) {
+    if (from) {
+      const tx = await this.eoaWithCodeInstance
+        .connect(from)
+        .callIncrement(this.delegation.address);
+      await tx.wait(1);
+    } else {
+      const tx = await this.eoaWithCodeInstance.callIncrement(
+        this.delegation.address
+      );
+      await tx.wait(1);
+    }
   }
 
-  private async delegatecallIncrement() {
-    const tx = await this.delegation.delegatecallIncrement(
-      this.eoaWithCodeInstance.address
-    );
-    await tx.wait(1);
+  private async delegatecallIncrement(from?: Wallet) {
+    if (from) {
+      const tx = await this.delegation
+        .connect(from)
+        .delegatecallIncrement(this.eoaWithCodeInstance.address);
+      await tx.wait(1);
+    } else {
+      const tx = await this.delegation.delegatecallIncrement(
+        this.eoaWithCodeInstance.address
+      );
+      await tx.wait(1);
+    }
   }
 
-  private async delegatecallIncrementFromEoaWithCode() {
-    const tx = await this.eoaWithCodeInstance.delegatecallIncrement(
-      this.delegation.address
-    );
-    await tx.wait(1);
+  private async delegatecallIncrementFromEoaWithCode(from?: Wallet) {
+    if (from) {
+      const tx = await this.eoaWithCodeInstance
+        .connect(from)
+        .delegatecallIncrement(this.delegation.address);
+      await tx.wait(1);
+    } else {
+      const tx = await this.eoaWithCodeInstance.delegatecallIncrement(
+        this.delegation.address
+      );
+      await tx.wait(1);
+    }
   }
-
-  private async callcodeIncrement() {
-    const tx = await this.delegation.callcodeIncrement(
-      this.eoaWithCodeInstance.address
-    );
-    await tx.wait(1);
+  private async callcodeIncrement(from?: Wallet) {
+    if (from) {
+      const tx = await this.delegation
+        .connect(from)
+        .callcodeIncrement(this.eoaWithCodeInstance.address);
+      await tx.wait(1);
+    } else {
+      const tx = await this.delegation.callcodeIncrement(
+        this.eoaWithCodeInstance.address
+      );
+      await tx.wait(1);
+    }
   }
-
-  private async callcodeIncrementFromEoaWithCode() {
-    const tx = await this.eoaWithCodeInstance.callcodeIncrement(
-      this.delegation.address
-    );
-    await tx.wait(1);
+  private async callcodeIncrementFromEoaWithCode(from?: Wallet) {
+    if (from) {
+      const tx = await this.eoaWithCodeInstance
+        .connect(from)
+        .callcodeIncrement(this.delegation.address);
+      await tx.wait(1);
+    } else {
+      const tx = await this.eoaWithCodeInstance.callcodeIncrement(
+        this.delegation.address
+      );
+      await tx.wait(1);
+    }
   }
 
   private async getCountOfEoaWithCode() {
